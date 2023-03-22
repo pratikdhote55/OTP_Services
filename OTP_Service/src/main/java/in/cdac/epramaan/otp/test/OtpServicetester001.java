@@ -15,8 +15,8 @@ public class OtpServiceTester001 {
 			Timestamp timestamp1 = new Timestamp(System.currentTimeMillis());
 			OtpModelTest otpModel = new OtpModelTest();
 			otpModel.setDept_id("HYD_VAPT");
-			otpModel.setMobile_number("9665504348");
-			otpModel.setEmail("ashishmane@cdac.in");
+			otpModel.setMobile_number("user mobile number");
+			otpModel.setEmail("your email id");
 			otpModel.setOtp_mode("3");
             otpModel.setPurpose("CDAC");
 			long time = System.currentTimeMillis();
