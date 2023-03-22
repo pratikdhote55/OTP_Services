@@ -1,0 +1,224 @@
+package in.cdac.epramaan.otp.util;
+
+import java.sql.Timestamp;
+import java.util.Calendar;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import in.cdac.epramaan.otp.common.bd.MasterConfigBD;
+import in.cdac.epramaan.otp.dao.DaoOperation;
+import in.cdac.epramaan.otp.model.OTP_Mode;
+import in.cdac.epramaan.otp.model.OtpGenRequest;
+import in.cdac.epramaan.otp.model.OtpVerifyRequest;
+import in.cdac.epramaan.otp.model.Response;
+
+@Service
+public class RequestValidator {
+
+	private static final String EMAIL_REGEX = "^[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$";
+	private static Pattern emailPattern, mobilePattern;
+	private Matcher emailMatcher, mobileMatcher;
+	private static final String MOBILE_REGEX = "[6-9][0-9]{9}";
+	private static final Logger logger = LoggerFactory.getLogger(RequestValidator.class);
+	
+
+	@Autowired
+	DaoOperation daoOperation;
+	
+	@Autowired
+	MasterConfigBD masterConfigBD;
+
+	public RequestValidator() {
+		emailPattern = Pattern.compile(EMAIL_REGEX, Pattern.CASE_INSENSITIVE);
+		mobilePattern = Pattern.compile(MOBILE_REGEX, Pattern.CASE_INSENSITIVE);
+		
+	}
+	
+	
+	
+
+	static final String ACTIVE = "A";
+	
+	public Response validateOtpGenRequest(OtpGenRequest request,String deptStatus) {
+		logger.debug("Validating Send OTP request");
+
+		if (request.getOtp_mode() == OTP_Mode.EMAIL_ONLY || request.getOtp_mode() == OTP_Mode.SMS_AND_EMAIL) {
+			if (request.getEmail() == null)
+				return new Response(false, ErrorCodes.INVALID_EMAIL);
+			emailMatcher = emailPattern.matcher(request.getEmail());
+			if (!emailMatcher.matches())
+				return new Response(false, ErrorCodes.INVALID_EMAIL);
+		}
+
+		if (request.getOtp_mode() == OTP_Mode.SMS_ONLY || request.getOtp_mode() == OTP_Mode.SMS_AND_EMAIL) {
+			if (request.getMobile_number() == null)
+				return new Response(false, ErrorCodes.INVALID_MOBILE_NO);
+			mobileMatcher = mobilePattern.matcher(request.getMobile_number());
+			if (!mobileMatcher.matches())
+				return new Response(false, ErrorCodes.INVALID_MOBILE_NO);
+		}
+
+		long tenMinutes = 15 * 60 * 1000;
+		Timestamp lowerTimeRange = new Timestamp(Calendar.getInstance().getTimeInMillis() - tenMinutes);
+		Timestamp upperTimeRange = new Timestamp(Calendar.getInstance().getTimeInMillis() + tenMinutes);
+		Timestamp requestRecvdTime = new Timestamp(request.getTimestamp());
+		if (!requestRecvdTime.before(upperTimeRange) || !requestRecvdTime.after(lowerTimeRange)) {
+			return new Response(false, ErrorCodes.INVALID_REQUEST_TIME);
+		}
+
+		if (request.getPurpose() == null)
+			return new Response(false, ErrorCodes.MISSING_PURPOSE_ATTRIBUTE);
+
+		if (request.getOtp_mode() <= 0 || request.getOtp_mode() >= 4)
+			return new Response(false, ErrorCodes.INVALID_OTP_MODE);
+
+		/*Response response = daoOperation.checkDeptIdValidity(request.getDept_id());
+		if (!response.isStatus())
+			return response;*/
+		
+		if(request.getVersion() == null)
+		{
+			logger.info("Version is null");
+			request.setVersion(Constants.DEFAULT_VERSION.getValue());
+			
+		}
+		else
+		{
+			if(request.getVersion().equalsIgnoreCase((Constants.VERSION_2_0.getValue())))
+			{
+				logger.info("Version selected is :" + request.getVersion());
+			}
+			else
+			{
+				logger.error("Invalid version");
+				return new Response(false, ErrorCodes.INVALID_API_VERSION);
+			}
+
+		}
+		
+		
+		if(request.getMobile_number_type() == null)
+		{
+			logger.info("Mobile number type is null");
+			//return new Response(false, ErrorCodes.MISSING_MOBILE_NUMBER_TYPE);
+			request.setMobile_number_type(Constants.MOBILE_TYPE_DOMESTIC.getValue());
+		}
+		
+		logger.info("Mobile number type is :" + request.getMobile_number_type());
+		
+		logger.debug("MOBILE_TYPE_DOMESTIC " + request.getMobile_number_type().equalsIgnoreCase(Constants.MOBILE_TYPE_DOMESTIC.getValue()));
+		logger.debug("MOBILE_TYPE_INTERNATIONAL " + request.getMobile_number_type().equalsIgnoreCase(Constants.MOBILE_TYPE_INTERNATIONAL.getValue()));
+		   
+		
+		if((request.getMobile_number_type().equalsIgnoreCase(Constants.MOBILE_TYPE_DOMESTIC.getValue()) == false) && (request.getMobile_number_type().equalsIgnoreCase(Constants.MOBILE_TYPE_INTERNATIONAL.getValue())== false))
+	    {
+	    	logger.info("Mobile number type is not equal to D or I");
+	    	return new Response(false, ErrorCodes.INVALID_MOBILE_NUMBER_TYPE);
+	    }
+	    logger.info("template type is :" + request.getTemplate_type());
+	    
+	    if((request.getTemplate_type()!= null))
+	    {
+	    	
+	    	if((request.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_KEYWORD.getValue()) == false) && (request.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_TEMPLATE_ID_BASED.getValue()) == false))
+	    	{
+	    		return new Response(false, ErrorCodes.INVALID_TEMPLATE_TYPE);
+	    	}
+	    	
+	    	if((request.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_KEYWORD.getValue())) && (request.getKeyword() == null))
+	    	{	
+	    		
+	    		return new Response(false, ErrorCodes.MISSING_KEYWORD_ATTRIBUTE);
+	    	}
+	    }
+	    else
+	    {
+	    	request.setTemplate_type(Constants.TEMPLATE_TYPE_DEFAULT.getValue());
+	    }
+	    
+	 
+
+	   
+
+	    //Country code validation
+	    
+	    if(request.getCountry_code() == null)
+	    {
+	    	logger.info("country code is null");
+	    	request.setCountry_code("IN");
+	    	//return new Response(false, ErrorCodes.MISSING_COUNTRY_CODE);
+	    }
+	    
+	    boolean isCountryCodeValid = isValidISOCountry(request.getCountry_code());
+	    logger.debug("isCountryCodeValid :" +isCountryCodeValid);
+	    if(!isCountryCodeValid)
+	    {
+	    	logger.info("country code is not valid :" + isCountryCodeValid);
+	    	return new Response(false, ErrorCodes.INVALID_COUNTRY_CODE);
+	    	
+	    }
+
+	    
+	   
+		
+		if(ACTIVE.equals(deptStatus)){
+			logger.debug("Department Status is ACTIVE");
+		}else{
+			logger.debug("Department Status is NOT ACTIVE");
+			return new Response(false, ErrorCodes.DEPT_NOT_ACTIVATED);
+		}
+
+		Response response = daoOperation.checkTxnIdDuplicacy(request.getTxn_id());
+		if (!response.isStatus())
+			return response;
+
+		return new Response(true);
+	}
+
+	public Response validateVerifyOtpRequest(OtpVerifyRequest request) {
+		logger.debug("Validating Verify OTP request");
+		long timeSlab = 15 * 60 * 1000;
+		Timestamp lowerTimeRange = new Timestamp(Calendar.getInstance().getTimeInMillis() - timeSlab);
+		Timestamp upperTimeRange = new Timestamp(Calendar.getInstance().getTimeInMillis() + timeSlab);
+		Timestamp requestRecvdTime = new Timestamp(request.getTimestamp());
+		if (!requestRecvdTime.before(upperTimeRange) || !requestRecvdTime.after(lowerTimeRange)) {
+			return new Response(false, ErrorCodes.INVALID_REQUEST_TIME);
+		}
+		return new Response(true);
+	}
+	
+	
+
+	
+	
+	 public static boolean isValidISOCountry(String countryCode) {
+		 logger.info("Inside isValidISOCountry method");
+			 String[] countries = Locale.getISOCountries();
+			  //Set<String> ISO_COUNTRIES = Set.of(Locale.getISOCountries());
+          int i = 0;
+			 for (String countryName : countries) {
+				 logger.debug("countryName :" + countryName);
+				 logger.debug("countryCode :" + countryCode);
+		        if(countryName.equalsIgnoreCase(countryCode))
+		        {
+		        	logger.info("country code matched");
+		        	return true;
+		        	
+		        }
+		        else
+		        {
+		        	logger.info("country code not matched");
+		        	i++;
+		        }
+		      }
+	        return false;
+	    }
+ 
+}

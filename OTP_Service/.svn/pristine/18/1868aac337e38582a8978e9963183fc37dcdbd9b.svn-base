@@ -1,0 +1,122 @@
+package in.cdac.epramaan.otp.model;
+
+public class Dept {
+	
+	private int attempts;
+	private String dept_id;
+	private String dept_name;
+	private String status;
+	private String template_id;
+	private String msg_template;
+	private Response response;
+	private String email_sender_opt;
+	private String email_signature;
+	private boolean custom_sms_account ;
+	private CustomSMSAccountInfo smsAccInfo; 
+	
+	
+	public Dept(){
+		
+	}
+	
+	public Dept(Response response){
+		this.response = response;
+	}
+
+	public int getAttempts() {
+		return attempts;
+	}
+
+	public void setAttempts(int attempts) {
+		this.attempts = attempts;
+	}
+
+	public String getDept_id() {
+		return dept_id;
+	}
+
+	public void setDept_id(String dept_id) {
+		this.dept_id = dept_id;
+	}
+
+	public String getDept_name() {
+		return dept_name;
+	}
+
+	public void setDept_name(String dept_name) {
+		this.dept_name = dept_name;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getTemplate_id() {
+		return template_id;
+	}
+
+	public void setTemplate_id(String template_id) {
+		this.template_id = template_id;
+	}
+
+	public String getMsg_template() {
+		return msg_template;
+	}
+
+	public void setMsg_template(String msg_template) {
+		this.msg_template = msg_template;
+	}
+	
+	public Response getResponse() {
+		return response;
+	}
+	
+	public void setResponse(Response response) {
+		this.response = response;
+	}
+	
+	public String getEmail_sender_opt() {
+		return email_sender_opt;
+	}
+
+	public void setEmail_sender_opt(String email_sender_opt) {
+		this.email_sender_opt = email_sender_opt;
+	}
+
+	public String getEmail_signature() {
+		return email_signature;
+	}
+
+	public void setEmail_signature(String email_signature) {
+		this.email_signature = email_signature;
+	}
+	
+	public boolean isCustom_sms_account() {
+		return custom_sms_account;
+	}
+
+	public void setCustom_sms_account(boolean custom_sms_account) {
+		this.custom_sms_account = custom_sms_account;
+	}
+
+
+	public CustomSMSAccountInfo getSmsAccInfo() {
+		return smsAccInfo;
+	}
+
+	public void setSmsAccInfo(CustomSMSAccountInfo smsAccInfo) {
+		this.smsAccInfo = smsAccInfo;
+	}
+
+	@Override
+	public String toString() {
+		return "Dept [attempts=" + attempts + ", dept_id=" + dept_id + ", dept_name=" + dept_name + ", status=" + status
+				+ ", template_id=" + template_id + ", msg_template=" + msg_template + ", response=" + response
+				+ ", email_sender_opt=" + email_sender_opt + ", email_signature=" + email_signature
+				+ ", custom_sms_account=" + custom_sms_account + ", smsAccInfo=" + smsAccInfo + "]";
+	}
+}

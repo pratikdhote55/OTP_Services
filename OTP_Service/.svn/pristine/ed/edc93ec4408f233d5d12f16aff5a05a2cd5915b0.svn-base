@@ -1,0 +1,32 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.common.model;
+
+/**
+ * The Class ConfigPara.
+ */
+public class ConfigPara {
+
+	/** The paraname. */
+	private String paraname;
+	
+	/** The paravalue. */
+	private String paravalue;
+
+	public String getParaname() {
+		return paraname;
+	}
+
+	public void setParaname(String paraname) {
+		this.paraname = paraname;
+	}
+
+	public String getParavalue() {
+		return paravalue;
+	}
+
+	public void setParavalue(String paravalue) {
+		this.paravalue = paravalue;
+	}
+}

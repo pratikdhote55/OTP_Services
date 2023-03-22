@@ -1,0 +1,38 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.common.dao;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.HashMap;
+
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.ResultSetExtractor;
+
+import in.cdac.epramaan.otp.common.model.ConfigPara;
+import in.cdac.epramaan.otp.util.ConfigParaKey;
+
+/**
+ * The Class ParaConfigResultSetExtractor.
+ */
+public class ParaConfigResultSetExtractor implements ResultSetExtractor<HashMap<ConfigParaKey, ConfigPara>> {
+
+	
+	/* (non-Javadoc)
+	 * @see org.springframework.jdbc.core.ResultSetExtractor#extractData(java.sql.ResultSet)
+	 */
+	@Override
+	public HashMap<ConfigParaKey, ConfigPara> extractData(ResultSet rs)
+			throws SQLException, DataAccessException {
+		HashMap<ConfigParaKey, ConfigPara> hmpConfigPara = new HashMap<ConfigParaKey, ConfigPara>();
+		while(rs.next()){
+			ConfigPara configPara=new ConfigPara();
+			String configParaName = rs.getString("para_name");
+			configPara.setParaname(configParaName);
+			configPara.setParavalue(rs.getString("para_value"));
+			hmpConfigPara.put(ConfigParaKey.getConfigPara(configParaName), configPara);
+		}
+		return hmpConfigPara;
+	}
+}

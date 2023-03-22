@@ -1,0 +1,92 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.util;
+
+/**
+ * The Enum ConfigParaKey.
+ */
+public enum ConfigParaKey {
+
+    
+    /** The smtp user id. */
+    SMTP_USER_ID("smtp_userId"),
+
+    /** The smtp password. */
+    SMTP_PASSWORD("smtp_password"),
+
+    /** The smtp host. */
+    SMTP_HOST("smtp_smtpHost"),
+
+    /** The smtp port. */
+    SMTP_PORT("smtp_smtpPort"),
+
+    /** The sms username. */
+    SMS_USERNAME("sms_username"),
+
+    /** The sms password. */
+    SMS_PASSWORD("sms_pwd"),
+
+    /** The sms sender id. */
+    SMS_SENDER_ID("sms_senderid"),
+    
+    /** The sms sender id. */
+    SMS_SECURE_KEY("sms_securekey"),
+
+    /** The sms url. */
+    SMS_URL("sms_url"),
+
+    /** The email verification duration. */
+    EMAIL_VERIFICATION_DURATION("email_verification_duration"),
+
+    /** The otp length. */
+    OTP_LENGTH("otp_length"),
+
+    /** The otp validity. */
+    OTP_VALIDITY("otp_validity"),
+
+    /** The sms verification duration. */
+    SMS_VERIFICATION_DURATION("sms_verification_duration"),
+
+    /** The captcha active status. */
+    CAPTCHA_ACTIVE_STATUS("captcha_active_status")
+    ;
+
+    /** The config para name. */
+    private final String configParaName;
+
+    /**
+     * Instantiates a new config para key.
+     * 
+     * @param configParaName
+     *            the config para name
+     */
+    ConfigParaKey(String configParaName) {
+        this.configParaName = configParaName;
+    }
+
+    /**
+     * Gets the config para name.
+     * 
+     * @return the config para name
+     */
+    public String getConfigParaName() {
+        return configParaName;
+    }
+
+    /**
+     * Gets the config para.
+     * 
+     * @param configParaName
+     *            the config para name
+     * @return the config para
+     */
+    public static ConfigParaKey getConfigPara(String configParaName) {
+        for (ConfigParaKey configParaKey : ConfigParaKey.values()) {
+            if (configParaKey.configParaName.equals(configParaName)) {
+                return configParaKey;
+            }
+        }
+        return null;
+    }
+}

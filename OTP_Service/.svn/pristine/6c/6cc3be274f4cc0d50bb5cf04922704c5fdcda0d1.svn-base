@@ -1,0 +1,5 @@
+smtp.emailOTPsubject =  %s - One Time Password
+smtp.emailOTPcontent1 = Your One Time Password (OTP) for <b>%s</b> service is <b>%s</b>. OTP is valid till %s or 1 successful attempt whichever is earlier. <br><br>DO NOT SHARE THIS One Time Password (OTP) WITH ANYONE. <br><br>This is an auto-generated email.  Please do not reply to this email. <br><br>Warm Regards <br>%s Team 
+smtp.emailOTPcontent2 =  service is <b> 
+smtp.emailOTPcontent3 = </b> <br><br>Please do not reply to this email.
+smtp.error.subject = Unable to send OTP via email

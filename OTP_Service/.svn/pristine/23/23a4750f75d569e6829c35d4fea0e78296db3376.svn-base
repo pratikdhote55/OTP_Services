@@ -1,0 +1,69 @@
+package in.cdac.epramaan.otp.model;
+
+public class DeptSmsTemplateMapping {
+	
+	private String template_type;
+	private String template_id;
+	private String msg_template;
+	private String default_signature;
+	
+	
+	
+	private Response response;
+	
+public DeptSmsTemplateMapping(){
+		
+	}
+	
+	public DeptSmsTemplateMapping(Response response){
+		this.response = response;
+	}
+	
+	
+	public String getTemplate_type() {
+		return template_type;
+	}
+	public void setTemplate_type(String template_type) {
+		this.template_type = template_type;
+	}
+	public String getTemplate_id() {
+		return template_id;
+	}
+	public void setTemplate_id(String template_id) {
+		this.template_id = template_id;
+	}
+	public String getMsg_template() {
+		return msg_template;
+	}
+	public void setMsg_template(String msg_template) {
+		this.msg_template = msg_template;
+	}
+	public Response getResponse() {
+		return response;
+	}
+	
+	public void setResponse(Response response) {
+		this.response = response;
+	}
+	
+	
+	
+	
+	public String getDefault_signature() {
+		return default_signature;
+	}
+
+	public void setDefault_signature(String default_signature) {
+		this.default_signature = default_signature;
+	}
+
+	@Override
+	public String toString() {
+		return "DeptSmsTemplateMapping [template_type=" + template_type + ", template_id=" + template_id
+				+ ", msg_template=" + msg_template + ", default_signature=" + default_signature + ", response="
+				+ response + "]";
+	}
+	
+	
+	
+}

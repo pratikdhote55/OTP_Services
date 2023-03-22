@@ -1,0 +1,69 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.common.bd;
+
+import java.util.HashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import in.cdac.epramaan.otp.common.dao.MasterConfigRepository;
+import in.cdac.epramaan.otp.common.model.ConfigPara;
+import in.cdac.epramaan.otp.util.ConfigParaKey;
+
+/**
+ * The Class MasterConfigBDImpl.
+ */
+@Component
+public class MasterConfigBDImpl implements MasterConfigBD {
+
+	/** The master config respository. */
+	@Autowired
+	MasterConfigRepository masterConfigRespository;
+
+	/** The Constant logger. */
+	private static final Logger logger = LoggerFactory.getLogger(MasterConfigBDImpl.class);
+
+	/** The hmp config para. */
+	private static HashMap<ConfigParaKey, ConfigPara> hmpConfigPara;
+
+	/**
+	 * Gets the all config para.
+	 * 
+	 * @return the all config para
+	 */
+	private HashMap<ConfigParaKey, ConfigPara> getAllConfigPara() {
+		logger.debug(" INSIDE getAllConfigPara");
+		if (hmpConfigPara != null) {
+			logger.debug("List of configpara already exists");
+
+		} else {
+			logger.debug("Initialising List of configpara");
+			hmpConfigPara = masterConfigRespository.getAllConfigPara();
+		}
+		return hmpConfigPara;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * in.cdac.epramaan.common.bd.MasterConfigBD#getConfigPara(in.cdac.epramaan
+	 * .util.ConfigParaKey)
+	 */
+	@Override
+	public ConfigPara getConfigPara(ConfigParaKey key) {
+
+		if (hmpConfigPara == null) {
+			hmpConfigPara = getAllConfigPara();
+		}
+		if (hmpConfigPara.containsKey(key)) {
+			return hmpConfigPara.get(key);
+		} else {
+			logger.debug("ConfigPara: " + key + " does not exist!");
+			return null;
+		}
+	}
+}

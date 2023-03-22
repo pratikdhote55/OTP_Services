@@ -1,0 +1,441 @@
+package in.cdac.epramaan.otp.service;
+
+import java.sql.Timestamp;
+import java.util.Calendar;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.core.env.Environment;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import in.cdac.epramaan.otp.bd.SendOTPBD;
+import in.cdac.epramaan.otp.crypto.CryptoUtil;
+import in.cdac.epramaan.otp.dao.DaoOperation;
+import in.cdac.epramaan.otp.model.Dept;
+import in.cdac.epramaan.otp.model.DeptEmailTemplateMapping;
+import in.cdac.epramaan.otp.model.DeptSmsTemplateMapping;
+import in.cdac.epramaan.otp.model.OTP;
+import in.cdac.epramaan.otp.model.OTP_Mode;
+import in.cdac.epramaan.otp.model.OtpGenRequest;
+import in.cdac.epramaan.otp.model.OtpGenResponse;
+import in.cdac.epramaan.otp.model.OtpRequest;
+import in.cdac.epramaan.otp.model.OtpVerifyRequest;
+import in.cdac.epramaan.otp.model.OtpVerifyResponse;
+import in.cdac.epramaan.otp.model.RequestType;
+import in.cdac.epramaan.otp.model.Response;
+import in.cdac.epramaan.otp.model.TemplateTypeCustomization;
+import in.cdac.epramaan.otp.util.Constants;
+import in.cdac.epramaan.otp.util.ErrorCodes;
+import in.cdac.epramaan.otp.util.RequestValidator;
+import in.cdac.epramaan.otp.util.StringTrimJsonDeserializer;
+
+@Service
+@Scope("prototype")
+public class RequestProcessor {
+	
+	private static final Logger logger = LoggerFactory.getLogger(RequestProcessor.class);
+	
+	@Autowired
+	OTPBD otpBD;
+
+	@Autowired
+	SendOTPBD sendOTPBD;
+
+	@Autowired
+	DaoOperation daoOperations;
+
+	@Autowired
+	Environment environment;
+
+	@Autowired
+	RequestValidator requestVAlidator;
+	
+	@Autowired
+	CryptoUtil cryptoUtil;
+	
+	Timestamp requestTime, responseTime;
+	String requestJson, responseJson;
+	
+	public ResponseEntity<String> sendOtp(OtpRequest clientRequest) {
+		ResponseEntity<String> responseEntity = checkXSS(clientRequest);
+		if(responseEntity != null)
+			return responseEntity;
+		requestTime = new Timestamp(Calendar.getInstance().getTimeInMillis());
+		/*Response resp = daoOperations.checkDeptIdValidity(clientRequest.getDept_id());
+		if (!resp.isStatus())
+			return getOtpGenResponse(clientRequest.getDept_id(), null, null, resp);*/
+		
+		Dept deptObj = daoOperations.getDeptInfo(clientRequest.getDept_id());
+		logger.debug("Dept Obj "+deptObj);
+		if(deptObj == null)
+			return getOtpGenResponse(clientRequest.getDept_id(), null, null, new Response(false, ErrorCodes.INVALID_DEPT_ID));
+		
+		Response resp = deptObj.getResponse();
+		if(resp.isStatus() == false)
+			return getOtpGenResponse(clientRequest.getDept_id(), null, null, deptObj.getResponse());
+
+		UUID licenseKey = daoOperations.getLicenseKey(clientRequest.getDept_id());
+		if (licenseKey == null) {
+			return getOtpGenResponse(clientRequest.getDept_id(), null, null,
+					new Response(false, ErrorCodes.INVALID_DEPT_ID));
+		}
+
+		//parse json data to java object
+		Object[] objects = getOtpGenRequest(licenseKey, clientRequest.getData());
+		if (objects[1] != null) {
+			return getOtpGenResponse(clientRequest.getDept_id(), null, licenseKey, (Response) objects[1]);
+		}
+		OtpGenRequest request = (OtpGenRequest) objects[0];
+		logger.info("decrypted request :" + request.toString());
+		resp = requestVAlidator.validateOtpGenRequest(request,deptObj.getStatus());
+		if (!resp.isStatus()) {
+			resp.setErrorMessage(environment.getProperty(resp.getErrorCode()));
+
+			return getOtpGenResponse(request.getDept_id(), request.getTxn_id(), licenseKey, resp);
+		}
+
+		/*
+		 * String deptName = daoOperations.getDeptName(request.getDept_id());
+		 * logger.info("Dept Name "+deptName);
+		 */
+		
+		
+
+		logger.debug("Calling service to generate OTP");
+		OTP otp = otpBD.generateOTP(request);
+		//String msgTempalte = environment.getProperty(Constants.SMS_OTP_CONTENT.getValue());
+
+	    String msgTemplate = deptObj.getMsg_template();
+ 		String templateId = deptObj.getTemplate_id();
+ 		boolean custom_sms_account = deptObj.isCustom_sms_account();
+ 	
+	    
+	   
+		if (otp.getResponse().isStatus()) {
+			logger.info("otp response is true");
+			logger.debug("otp request mode is :"+ request.getOtp_mode());
+			switch (request.getOtp_mode()) {
+			case OTP_Mode.SMS_ONLY:
+				logger.debug("sending otp via sms");
+				
+				if(request.getVersion().equalsIgnoreCase(Constants.VERSION_2_0.getValue()))
+				{
+					DeptSmsTemplateMapping deptTemplateMapping = daoOperations.getDeptSmsTemplateMapping(deptObj.getDept_id());
+					
+					TemplateTypeCustomization templateTypeInfo = new TemplateTypeCustomization();
+					templateTypeInfo.setTemplate_type(request.getTemplate_type());
+					if(request.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_KEYWORD.getValue()))
+					{
+						templateTypeInfo.setKeyword(request.getKeyword());
+						templateTypeInfo.setTemplateId(deptTemplateMapping.getTemplate_id());
+						
+					}
+					else if(request.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_TEMPLATE_ID_BASED.getValue()))
+					{
+						templateTypeInfo.setThirdPartyTemplate(request.getCustom_template());
+						templateTypeInfo.setThirdPartySignature(request.getCustom_signature());
+						templateTypeInfo.setTemplateId(request.getTemplate_id());
+					}
+					else
+					{
+						templateTypeInfo.setMsgTemplate(deptObj.getMsg_template());
+						templateTypeInfo.setTemplateId(deptObj.getTemplate_id());
+						templateTypeInfo.setKeyword(deptTemplateMapping.getDefault_signature());
+					}
+					
+					resp = sendOTPBD.sendSMS(otp.getOtpToken(), request.getMobile_number(), otp.getOtpValidityTime(), 
+							request.getTxn_id(), custom_sms_account, deptObj.getSmsAccInfo(),templateTypeInfo);
+				}
+				else
+				{
+					resp = sendOTPBD.sendSMS(otp.getOtpToken(), request.getMobile_number(), otp.getOtpValidityTime(), request.getPurpose(),
+							request.getTxn_id(), msgTemplate, templateId, request.getSignature());
+				}
+				
+				if (!resp.isStatus())
+					return getOtpGenResponse(clientRequest.getDept_id(), request.getTxn_id(), licenseKey, resp);
+				break;
+			case OTP_Mode.EMAIL_ONLY:
+				logger.debug("Sending otp via email");
+	            
+				resp = sendOTPBD.sendEmail(otp.getOtpToken(), request.getEmail(), request.getPurpose(), otp.getOtpValidityTime(), 
+						request.getTxn_id());
+				if (!resp.isStatus())
+					return getOtpGenResponse(clientRequest.getDept_id(), request.getTxn_id(), licenseKey, resp);
+				break;
+			case OTP_Mode.SMS_AND_EMAIL:
+				logger.debug("Sending otp via sms and email");
+				
+				if(request.getVersion().equalsIgnoreCase(Constants.VERSION_2_0.getValue()))
+				{
+					DeptSmsTemplateMapping deptTemplateMapping = daoOperations.getDeptSmsTemplateMapping(deptObj.getDept_id());
+					
+					TemplateTypeCustomization templateTypeInfo = new TemplateTypeCustomization();
+					templateTypeInfo.setTemplate_type(request.getTemplate_type());
+					if(request.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_KEYWORD.getValue()))
+					{
+						templateTypeInfo.setKeyword(request.getKeyword());
+						templateTypeInfo.setTemplateId(deptTemplateMapping.getTemplate_id());
+						
+					}
+					else if(request.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_TEMPLATE_ID_BASED.getValue()))
+					{
+						templateTypeInfo.setThirdPartyTemplate(request.getCustom_template());
+						templateTypeInfo.setThirdPartySignature(request.getCustom_signature());
+						templateTypeInfo.setTemplateId(request.getTemplate_id());
+					}
+					else
+					{
+						templateTypeInfo.setMsgTemplate(deptObj.getMsg_template());
+						templateTypeInfo.setTemplateId(deptObj.getTemplate_id());
+						templateTypeInfo.setKeyword(deptTemplateMapping.getDefault_signature());
+					}
+					
+					resp = sendOTPBD.sendSMS(otp.getOtpToken(), request.getMobile_number(), otp.getOtpValidityTime(), 
+							request.getTxn_id(), custom_sms_account, deptObj.getSmsAccInfo(),templateTypeInfo);
+				}
+				else
+				{
+					resp = sendOTPBD.sendSMS(otp.getOtpToken(), request.getMobile_number(), otp.getOtpValidityTime(), request.getPurpose(),
+							request.getTxn_id(), msgTemplate, templateId, request.getSignature());
+				}
+				
+				
+				if (!resp.isStatus())
+					return getOtpGenResponse(clientRequest.getDept_id(), request.getTxn_id(), licenseKey, resp);
+				resp = sendOTPBD.sendEmail(otp.getOtpToken(), request.getEmail(), request.getPurpose(), otp.getOtpValidityTime(),
+						request.getTxn_id());
+				if (!resp.isStatus())
+					return getOtpGenResponse(clientRequest.getDept_id(), request.getTxn_id(), licenseKey, resp);
+				break;
+			default:
+				return getOtpGenResponse(request.getDept_id(), request.getTxn_id(), licenseKey,
+						new Response(false, ErrorCodes.INVALID_OTP_MODE));
+			}
+			
+			
+			if(request.getMobile_number()!=null) {
+				String encrypted_mobile=cryptoUtil.encrypt(request.getMobile_number(),"master_aes_key");
+				logger.debug("encrypted_mobile number"+encrypted_mobile);
+				request.setMobile_number(encrypted_mobile);
+			}
+			
+			if(request.getEmail()!=null) {
+				String encrypetd_email=cryptoUtil.encrypt(request.getEmail(),"master_aes_key");
+			logger.debug("encrypted_email id"+encrypetd_email);
+			request.setEmail(encrypetd_email);
+			}
+
+			Response dbResponse = daoOperations.insertTransactionRecord(request, otp);
+			if (dbResponse.isStatus()) {
+				return getOtpGenResponse(request.getDept_id(), request.getTxn_id(), licenseKey,
+						new Response(true, ErrorCodes.SUCCESS));
+			}
+			resp.setErrorCode(dbResponse.getErrorCode());
+			resp.setErrorMessage(dbResponse.getErrorMessage());
+			resp.setStatus(dbResponse.isStatus());
+		} else {
+			resp.setErrorCode(otp.getResponse().getErrorCode());
+			resp.setErrorMessage(otp.getResponse().getErrorMessage());
+			resp.setStatus(false);
+		}
+		return getOtpGenResponse(request.getDept_id(), request.getTxn_id(), licenseKey, resp);
+	}
+
+	public ResponseEntity<String> verifyOtp(OtpRequest clientRequest) {
+		ResponseEntity<String> responseEntity = checkXSS(clientRequest);
+		if(responseEntity != null)
+			return responseEntity;
+		requestTime = new Timestamp(Calendar.getInstance().getTimeInMillis());
+		Response resp = daoOperations.checkDeptIdValidity(clientRequest.getDept_id());
+		if (!resp.isStatus())
+			return getOtpVerifyResponse(clientRequest.getDept_id(), null, null, resp);
+
+		UUID licenseKey = daoOperations.getLicenseKey(clientRequest.getDept_id());
+		if (licenseKey == null) {
+			return getOtpVerifyResponse(clientRequest.getDept_id(), null, null,
+					new Response(false, ErrorCodes.INVALID_DEPT_ID));
+		}
+
+		Object[] objects = getOtpVerifyRequest(licenseKey, clientRequest.getData());
+		if (objects[1] != null) {
+			return getOtpVerifyResponse(clientRequest.getDept_id(), null, licenseKey, (Response) objects[1]);
+		}
+		
+		OtpVerifyRequest request = (OtpVerifyRequest) objects[0];
+		resp = requestVAlidator.validateVerifyOtpRequest(request);
+		if (!resp.isStatus()) {
+			// request time validation is failed
+			resp.setErrorMessage(environment.getProperty(resp.getErrorCode()));
+			return getOtpVerifyResponse(request.getDept_id(), request.getTxn_id(), licenseKey, resp);
+		}
+
+		logger.debug("Calling service to verify OTP");
+		OTP otp = daoOperations.getOtp(request);
+		// otp status when retrieved from the DB
+		if (otp.getResponse().isStatus() == false) {
+			//this fails when the txn id is not available in the db or some db exception
+			//so we can't update transactions table
+			return getOtpVerifyResponse(request.getDept_id(), request.getTxn_id(), licenseKey, otp.getResponse());
+		}
+
+		//when all the attempts are made or the otp verified successfully with valid otp
+		//in this case also we can't update transactions table
+		int maxAttempts = daoOperations.getMaxAttempts(request.getDept_id());
+		if(maxAttempts == otp.getAttemptCount() || otp.isOtpVerifyStatus())
+			return getOtpVerifyResponse(request.getDept_id(), request.getTxn_id(), licenseKey,
+					new Response(false, ErrorCodes.OTP_IS_EXPIRED));
+		
+		// validating the otp value and otp expired time
+		OtpVerifyResponse response = otpBD.verifyOTP(otp, request.getOtp_value(),request.getOtp_as_hash());
+		if (response.isStatus() == true || (response.isStatus() == false
+				&& !response.getErrorCode().equals(ErrorCodes.SYSTEM_INTERNAL_ERROR))) {
+			daoOperations.updateOtpTransaction(request.getTxn_id(), new Timestamp(request.getTimestamp()),
+					response.isStatus(), response.getErrorCode(),otp.getAttemptCount()+1);
+		}
+		return getOtpVerifyResponse(request.getDept_id(), request.getTxn_id(), licenseKey,
+				new Response(response.isStatus(), response.getErrorCode()));
+	}
+	
+	private ResponseEntity<String> getOtpGenResponse(String deptId, UUID txnId, UUID licenseKey, Response response) {
+		OtpGenResponse otpGenResponse = new OtpGenResponse();
+		otpGenResponse.setDept_id(deptId);
+		if (txnId != null)
+			otpGenResponse.setTxn_id(txnId);
+		response.setErrorMessage(environment.getProperty(response.getErrorCode()));
+		otpGenResponse.setResponse(response);
+		logger.debug(response.getErrorCode() + " -- " + response.getErrorMessage());
+		Gson gson = new Gson();
+		String jsonContent = gson.toJson(otpGenResponse);
+		responseJson = jsonContent;
+		responseTime = new Timestamp(Calendar.getInstance().getTimeInMillis());
+		if (licenseKey == null)
+			return new ResponseEntity<String>(jsonContent,HttpStatus.OK);
+		CryptoUtil crypto = new CryptoUtil();
+		String encryptedResponse = crypto.encrypt(jsonContent, licenseKey.toString());
+		daoOperations.insertLogs(deptId, txnId, requestTime, requestJson, responseTime, responseJson, response.getErrorCode(), RequestType.REQUEST_SEND_OTP);
+		return new ResponseEntity<String>(encryptedResponse,HttpStatus.OK);
+	}
+
+	private Object[] getOtpGenRequest(UUID licenseKey, String data) {
+		Object[] output = new Object[2];
+		// object[0] is request, object[1] is the response in case of exception
+		CryptoUtil crypto = new CryptoUtil();
+		logger.debug("data from the client before decrypt : " + data);
+		String decrypted = crypto.decrypt(data, licenseKey.toString());
+		if (decrypted == null) {
+			requestJson = data;
+			output[1] = new Response(false, ErrorCodes.ERROR_IN_DECRYPT_REQUEST);
+			return output;
+		}
+		requestJson = decrypted;
+		logger.debug("decrypted data : " + decrypted);
+//		Gson gson = new Gson();
+		Gson gson = new GsonBuilder()
+		        .registerTypeAdapter(String.class, new StringTrimJsonDeserializer())
+		        .create();
+		try {
+			OtpGenRequest request = gson.fromJson(decrypted, OtpGenRequest.class);
+			/*logger.debug("Data from the client request");
+			logger.debug("Dep Id : "+request.getDept_id());
+			logger.debug("Txn Id : "+request.getTxn_id());
+			logger.debug("Email : "+request.getEmail());
+			logger.debug("Mobile Number : "+request.getMobile_number());
+			logger.debug("Otp Mode : "+request.getOtp_mode());
+			logger.debug("Purpose : "+request.getPurpose());
+			logger.debug("Purpose : "+request.getSignature());
+			logger.debug(
+					"Request Time Stamp : " + request.getTimestamp() + " -- " + new Timestamp(request.getTimestamp()));*/
+			output[0] = request;
+			return output;
+		} catch (Exception e) {
+			logger.error("Unable to parse jsont o object", e);
+			output[1] = new Response(false, ErrorCodes.INVALID_REQUEST_DATA);
+			return output;
+		}
+	}
+
+	private Object[] getOtpVerifyRequest(UUID licenseKey, String data) {
+		// object[0] is request, object[1] is the response in case of excetpion
+		Object[] output = new Object[2];
+		CryptoUtil crypto = new CryptoUtil();
+		logger.debug("data from the client before decrypt : " + data);
+		String decrypted = crypto.decrypt(data, licenseKey.toString());
+		if (decrypted == null) {
+			requestJson = data;
+			output[1] = new Response(false, ErrorCodes.ERROR_IN_DECRYPT_REQUEST);
+			return output;
+		}
+		requestJson = decrypted;
+		logger.debug("decrypted data : " + decrypted);
+		Gson gson = new GsonBuilder()
+		        .registerTypeAdapter(String.class, new StringTrimJsonDeserializer())
+		        .create();
+		try {
+			OtpVerifyRequest request = gson.fromJson(decrypted, OtpVerifyRequest.class);
+			logger.debug("Data from the client request");
+			logger.debug("Dept Id : "+request.getDept_id());
+			logger.debug("Txn Id : "+request.getTxn_id());
+//			logger.debug("Otp Value : "+request.getOtp_value());
+			logger.debug(
+					"Request Time Stamp : " + request.getTimestamp() + " -- " + new Timestamp(request.getTimestamp()));
+			output[0] = request;
+			return output;
+		} catch (Exception e) {
+			logger.error("Unable to parse jsont o object", e);
+			output[1] = new Response(false, ErrorCodes.INVALID_REQUEST_DATA);
+			return output;
+		}
+	}
+
+	private ResponseEntity<String> getOtpVerifyResponse(String deptId, UUID txnId, UUID licenseKey, Response response) {
+		OtpVerifyResponse otpVerifyResponse = new OtpVerifyResponse();
+		otpVerifyResponse.setDept_id(deptId);
+		if (txnId != null)
+			otpVerifyResponse.setTxn_id(txnId);
+		response.setErrorMessage(environment.getProperty(response.getErrorCode()));
+		logger.debug(response.getErrorCode() + " -- " + response.getErrorMessage());
+		otpVerifyResponse.setResponse(response);
+		Gson gson = new Gson();
+		String jsonContent = gson.toJson(otpVerifyResponse);
+		responseJson = jsonContent;
+		responseTime = new Timestamp(Calendar.getInstance().getTimeInMillis());
+		if (licenseKey == null)
+			return new ResponseEntity<String>(jsonContent,HttpStatus.OK);
+		CryptoUtil crypto = new CryptoUtil();
+		String encryptedResponse = crypto.encrypt(jsonContent, licenseKey.toString());; 
+		daoOperations.insertLogs(deptId, txnId, requestTime, requestJson, responseTime, responseJson, response.getErrorCode(), RequestType.REQUEST_VERIFY_OTP);
+		return new ResponseEntity<String>(encryptedResponse,HttpStatus.OK); 
+	}
+	
+	private ResponseEntity<String> checkXSS(Object object){
+		String htmlPattern = ".*\\<[^>]+>.*";
+		String nullString = null;
+		if(object instanceof OtpRequest){
+			OtpRequest otpRequest = (OtpRequest) object;
+			if(otpRequest.getDept_id().matches(htmlPattern))
+				return new ResponseEntity<String>(nullString, HttpStatus.BAD_REQUEST);		
+		}
+		//NOT YET USED
+		/*else if(object instanceof OtpGenRequest){
+			OtpGenRequest request = (OtpGenRequest) object;
+			if(request.getEmail().matches(htmlPattern) || request.getMobile_number().matches(htmlPattern)
+					|| request.getPurpose().matches(htmlPattern))
+				return new ResponseEntity<String>(nullString, HttpStatus.BAD_REQUEST);
+		}else if(object instanceof OtpVerifyRequest){
+			OtpVerifyRequest request = (OtpVerifyRequest) object;
+			if(request.getOtp_value().matches(htmlPattern))
+				return new ResponseEntity<String>(nullString, HttpStatus.BAD_REQUEST);
+		}*/
+		return null;
+	}
+	
+
+
+}

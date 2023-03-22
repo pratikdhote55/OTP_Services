@@ -1,0 +1,109 @@
+package in.cdac.epramaan.otp.service;
+
+import java.security.NoSuchAlgorithmException;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Random;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+
+import in.cdac.epramaan.otp.common.bd.MasterConfigBD;
+import in.cdac.epramaan.otp.model.OtpGenRequest;
+import in.cdac.epramaan.otp.model.OtpGenResponse;
+import in.cdac.epramaan.otp.model.OTP;
+import in.cdac.epramaan.otp.model.OtpVerifyRequest;
+import in.cdac.epramaan.otp.model.OtpVerifyResponse;
+import in.cdac.epramaan.otp.model.Response;
+import in.cdac.epramaan.otp.util.ConfigParaKey;
+import in.cdac.epramaan.otp.util.ConvertSHA2;
+import in.cdac.epramaan.otp.util.ConvertString;
+import in.cdac.epramaan.otp.util.ErrorCodes;
+import in.cdac.epramaan.otp.util.TOTP;
+
+/**
+ * The Class OTPBDImpl.
+ */
+@Component
+public class OTPBDImpl implements OTPBD {
+
+	/** The Constant logger. */
+	private static final Logger logger = LoggerFactory.getLogger(OTPBDImpl.class);
+
+	@Autowired
+	MasterConfigBD masterConfigBD;
+
+	@Override
+	public OTP generateOTP(OtpGenRequest request) {
+		OTP otpResponse = new OTP();
+		ConvertString convertString = new ConvertString();
+		Calendar cal = Calendar.getInstance();
+		String seed = Long
+				.toString(convertString.convertToAscii(request.getDept_id().concat(request.getTxn_id().toString())));
+		String time = Long.toString(cal.getTimeInMillis());
+		String otpToken = TOTP.generateTOTP256(seed, time,
+				masterConfigBD.getConfigPara(ConfigParaKey.OTP_LENGTH).getParavalue());
+		otpResponse.setOtpToken(otpToken);
+//		logger.debug("Generated OTP is : " + otpToken);
+		cal.add(Calendar.MINUTE,
+				Integer.parseInt(masterConfigBD.getConfigPara(ConfigParaKey.OTP_VALIDITY).getParavalue()));
+		Timestamp validityTimeStamp = new Timestamp(cal.getTimeInMillis());
+		otpResponse.setOtpValidityTime(validityTimeStamp);
+		ConvertSHA2 convertSHA2 = new ConvertSHA2();
+		String enOtpToken;
+		try {
+			enOtpToken = convertSHA2.convertStringToSHA2(otpToken);
+			otpResponse.setEnOtpToken(enOtpToken);
+		} catch (NoSuchAlgorithmException e) {
+			logger.error("Unable to encrypt the otp token : ", e);
+			otpResponse.setResponse(new Response(false, ErrorCodes.UNABLE_MAKE_HASH_OTP));
+			return otpResponse;
+		}
+		otpResponse.setResponse(new Response(true));
+		return otpResponse;
+	}
+
+	@Override
+	public OtpVerifyResponse verifyOTP(OTP otp, String otpValue,int otp_as_hash) {
+		Timestamp currentTimestamp = new Timestamp(Calendar.getInstance().getTimeInMillis());
+		logger.debug("Current timestamp is : " + currentTimestamp);
+		logger.debug("OTP Validity Time stamp is " + otp.getOtpValidityTime());
+		try {
+			if (currentTimestamp.before(otp.getOtpValidityTime())) {
+				logger.debug("Otp time is valid");
+//				logger.debug("otp value from the client : " + otpValue);
+				ConvertSHA2 convertSHA2 = new ConvertSHA2();
+				String enOtp;
+				try {
+					if(otp_as_hash == 0)
+						enOtp = convertSHA2.convertStringToSHA2(otpValue);
+					else
+						enOtp = otpValue;
+				} catch (NoSuchAlgorithmException e) {
+					logger.error("Unable to get Hash of otp : ", e);
+					return new OtpVerifyResponse(new Response(false, ErrorCodes.UNABLE_MAKE_HASH_OTP));
+				}
+				logger.debug("Encrypted otp value from the client : " + enOtp);
+				if (enOtp.equals(otp.getEnOtpToken())) {
+					logger.debug("valid otp");
+					return new OtpVerifyResponse(new Response(true, ErrorCodes.SUCCESS));
+				} else {
+					logger.debug("invalid otp value");
+					return new OtpVerifyResponse(new Response(false, ErrorCodes.INVALID_OTP));
+				}
+			} else {
+				logger.debug("Otp time is expired");
+				return new OtpVerifyResponse(new Response(false, ErrorCodes.OTP_TIME_EXPIRED));
+			}
+		} catch (Exception e) {
+			logger.error("System error in verifying otp : ", e);
+			return new OtpVerifyResponse(new Response(false, ErrorCodes.SYSTEM_INTERNAL_ERROR));
+		}
+	}
+}

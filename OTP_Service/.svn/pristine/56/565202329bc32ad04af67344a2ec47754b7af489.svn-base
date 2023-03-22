@@ -1,0 +1,59 @@
+package in.cdac.epramaan.otp.model;
+
+public class CustomSMSAccountInfo {
+	
+	private String sender_id;
+	private String sms_username;
+	private String sms_pwd;
+	private String sms_key;
+	
+	
+	public CustomSMSAccountInfo(){
+		
+	}
+	
+	
+	public String getSender_id() {
+		return sender_id;
+	}
+	public void setSender_id(String sender_id) {
+		this.sender_id = sender_id;
+	}
+	public String getSms_username() {
+		return sms_username;
+	}
+	public void setSms_username(String sms_username) {
+		this.sms_username = sms_username;
+	}
+	public String getSms_pwd() {
+		return sms_pwd;
+	}
+	public void setSms_pwd(String sms_pwd) {
+		this.sms_pwd = sms_pwd;
+	}
+	public String getSms_key() {
+		return sms_key;
+	}
+	public void setSms_key(String sms_key) {
+		this.sms_key = sms_key;
+	}
+	
+	
+	
+	
+	public CustomSMSAccountInfo(String sender_id, String sms_username, String sms_pwd, String sms_key) {
+		super();
+		this.sender_id = sender_id;
+		this.sms_username = sms_username;
+		this.sms_pwd = sms_pwd;
+		this.sms_key = sms_key;
+	}
+	@Override
+	public String toString() {
+		return "CustomSMSAccountInfo [sender_id=" + sender_id + ", sms_username=" + sms_username + ", sms_key=" + sms_key + "]";
+	}
+	
+	
+	
+
+}

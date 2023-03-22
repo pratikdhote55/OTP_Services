@@ -1,0 +1,126 @@
+package in.cdac.epramaan.otp.dao;
+
+import org.springframework.stereotype.Component;
+
+@Component
+public class DBQueries {
+
+	public String insertOtpTxn() {
+		String insertQuery = "INSERT INTO transactions(dept_id,txn_id,otp_mode,otp_value,mobile,email,otp_validity_time,otp_request_time,attempt_count) VALUES(?,?,?,?,?,?,?,?,?)";
+		return insertQuery;
+	}
+
+	public String updateOtpTxn() {
+		String updateQuery = "UPDATE transactions SET verify_request_time=?, otp_verify_status=?, response_code=?, attempt_count=? WHERE txn_id=?";
+		return updateQuery;
+	}
+
+	public String updateResponseCode() {
+		String updateQuery = "UPDATE transactions SET response_code=? WHERE txn_id=?";
+		return updateQuery;
+	}
+	
+	public String getOtp() {
+		String otpTxnQuery = "SELECT * FROM transactions WHERE dept_id=? AND txn_id=?";
+		return otpTxnQuery;
+	}
+	
+	public String getDeptInfo() {
+		String otpTxnQuery = "SELECT * FROM dept WHERE dept_id=?";
+		return otpTxnQuery;
+	}
+
+	public String getLicenseKey() {
+		String licenseKeyQuery = "SELECT license_key FROM license_keys WHERE dept_id=?";
+		return licenseKeyQuery;
+	}
+	
+	public String getMaxAttempts() {
+		String maxAttemptsQuery = "SELECT attempts FROM dept WHERE dept_id=?";
+		return maxAttemptsQuery;
+	}
+	
+	public String getAttemptedCount() {
+		//This will tell you how many attempts made till now
+		String attemptedCount = "SELECT attempt_count FROM transactions WHERE dept_id=?";
+		return attemptedCount;
+	}
+
+	public String getDeptName() {
+		String otpTxnQuery = "SELECT dept_name FROM dept WHERE dept_id=?";
+		return otpTxnQuery;
+	}
+
+	public String checkDeptIdValidity() {
+		String checkDIDQuery = "SELECT count(*) FROM dept WHERE dept_id=?";
+		return checkDIDQuery;
+	}
+	
+	public String checkDeptActivation() {
+		String deptActivationQuery = "SELECT count(*) FROM dept WHERE dept_id=? AND status=?";
+		return deptActivationQuery;
+	}	
+
+	public String checkTxnIdDuplicacy() {
+		String checkTIDQuery = "SELECT count(*) FROM transactions WHERE txn_id=?";
+		return checkTIDQuery;
+	}
+
+	public String updateSMSDeliveryStatusQuery() {
+		String updateQuery = "UPDATE transactions SET sms_delivery_time=? WHERE txn_id=?";
+		return updateQuery;
+	}
+
+	public String updateEmailDeliveryStatusQuery() {
+		String updateQuery = "UPDATE transactions SET email_delivery_time=? WHERE txn_id=?";
+		return updateQuery;
+	}
+	
+	public String insertLogs(){
+		String query = "INSERT INTO request_logs(id,dept_id,txn_id,request_time,request_json,response_time,response_json,response_code,request_type) VALUES(?,?,?,?,?,?,?,?,?)";
+		return query;
+	}
+	
+	public String deptCountQuery() {
+		String deptCountQuery = "SELECT count(*) FROM dept";
+		return deptCountQuery;
+	}
+
+	public String deptSmsTemplateMapping()
+	{
+		String deptSmsTemplateMappingQuery = "SELECT * FROM dept_sms_template_mapping WHERE dept_id=? ";
+		return deptSmsTemplateMappingQuery;
+		
+	}
+	
+	public String getEmailSignatureOptionInfo() {
+		String deptEmailTemplateMappingQuery = "SELECT * FROM dept_email_template_mapping WHERE dept_id=?";
+		return deptEmailTemplateMappingQuery;
+	}
+	
+	
+	/*
+	 * public String checkLicenseKeyQuery() { String checkLkQuery =
+	 * "SELECT dept_id FROM license_keys WHERE dept_id=? AND license_key=?";
+	 * return checkLkQuery; }
+	 * 
+	 * public String checkLicenseValidity() { String checkLkValidityQuery =
+	 * "SELECT dept_id FROM license_keys WHERE dept_id=? AND license_key=? AND valid_till >= now()::date"
+	 * ; return checkLkValidityQuery; }
+	 * 
+	 * public String checkTxnUniqueness() { String txnUniqueQuery =
+	 * "SELECT txn_id FROM cert_txn WHERE txn_id=?"; return txnUniqueQuery; }
+	 * 
+	 * public String insertTransactionQuery1() { String insertQuery =
+	 * "INSERT INTO cert_txn(dept_id,txn_id,request_timestamp) VALUES(?,?,?)";
+	 * return insertQuery; }
+	 * 
+	 * public String insertTransactionQuery() { String insertQuery =
+	 * "INSERT INTO cert_txn(dept_id,txn_id,request_timestamp,error_code,response_status,cert_status) VALUES(?,?,?,?,?,?)"
+	 * ; return insertQuery; }
+	 * 
+	 * public String updateTransactionQuery() { String updateQuery =
+	 * "UPDATE cert_txn SET error_code=?, cert_status=?, response_status=? WHERE txn_id=?"
+	 * ; return updateQuery; }
+	 */
+}

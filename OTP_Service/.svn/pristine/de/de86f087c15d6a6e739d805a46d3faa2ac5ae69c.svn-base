@@ -1,0 +1,165 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.util;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URL;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.sql.Timestamp;
+import java.util.Calendar;
+import java.util.UUID;
+
+import javax.net.ssl.HttpsURLConnection;
+
+import org.apache.log4j.spi.ErrorCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+
+import in.cdac.epramaan.otp.dao.DaoOperation;
+
+/**
+ * The Class SMSService.
+ */
+@Component
+public class SMSService {
+
+	@Autowired
+	DaoOperation daoOperation;
+
+	private static final Logger logger = LoggerFactory.getLogger(SMSService.class);
+
+	/** The connection. */
+	static HttpsURLConnection connection = null;
+
+	/**
+	 * Send sms.
+	 * 
+	 * @param mobile
+	 *            the mobile
+	 * @param smsContent
+	 *            the sms content
+	 * @return true, if successful
+	 */
+	public boolean sendSMS(String mobileNumber, String smsContent, String username, String password, String senderid,
+			URL url, String secureKey, UUID txnId,String templateId) {
+		logger.debug("Sending SMS to: " + mobileNumber);
+		try {
+			if (mobileNumber != null && !mobileNumber.isEmpty()) {
+				String mobileNumberWithZeroPrefix = "0" + mobileNumber;
+				String encryptedPassword = MD5(password);
+				String genratedhashKey = hashGenerator(username, senderid, smsContent, secureKey);
+
+				HttpHeaders headers = new HttpHeaders();
+				headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+				MultiValueMap<String, String> map = new LinkedMultiValueMap<String, String>();
+				map.add("mobileno", mobileNumberWithZeroPrefix);
+				map.add("senderid", senderid);
+				map.add("content", smsContent);
+//				map.add("smsservicetype", "singlemsg");
+				map.add("smsservicetype", "otpmsg");
+				map.add("password", encryptedPassword);
+				map.add("username", username);
+				map.add("key", genratedhashKey);
+				map.add("templateid", templateId);
+				logger.debug("Attempting REST Call");
+
+				HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<MultiValueMap<String, String>>(map,
+						headers);
+				RestTemplate restTemplate = new RestTemplate();
+				ResponseEntity<String> response = restTemplate.postForEntity(url.toURI(), request, String.class);
+
+				logger.debug("Response: " + response.getBody());
+				if(response.getBody().startsWith("402")){
+					//success
+					logger.debug("SMS sent successfully to " + mobileNumber);
+					Timestamp timestamp = new Timestamp(Calendar.getInstance().getTimeInMillis());
+					daoOperation.setSMSDeliveryTime(txnId, timestamp);	
+				}else{
+					//failed to send sms
+					daoOperation.updateResposneCode(txnId, ErrorCodes.PROBLEM_IN_SMS_GATEWAY);
+				}
+				return true;
+			} else {
+				logger.error("Error: No Mobile Number found.");
+				return false;
+			}
+		} catch (Exception e) {
+			logger.error("Unable to send OTP via SMS : ", e);
+			return false;
+		}
+
+	}
+
+	protected static String hashGenerator(String userName, String senderId, String content, String secureKey) {
+		// TODO Auto-generated method stub
+		StringBuffer finalString = new StringBuffer();
+		finalString.append(userName.trim()).append(senderId.trim()).append(content.trim()).append(secureKey.trim());
+		// logger.info("Parameters for SHA-512 : "+finalString);
+		String hashGen = finalString.toString();
+		StringBuffer sb = null;
+		MessageDigest md;
+		try {
+			md = MessageDigest.getInstance("SHA-512");
+			md.update(hashGen.getBytes());
+			byte byteData[] = md.digest();
+			// convert the byte to hex format method 1
+			sb = new StringBuffer();
+			for (int i = 0; i < byteData.length; i++) {
+				sb.append(Integer.toString((byteData[i] & 0xff) + 0x100, 16).substring(1));
+			}
+
+		} catch (NoSuchAlgorithmException e) {
+			logger.error("Error in otp service : ", e);
+		}
+		return sb.toString();
+	}
+
+	/****
+	 * Method to convert Normal Plain Text Password to MD5 encrypted password
+	 ***/
+
+	private static String MD5(String text) throws NoSuchAlgorithmException, UnsupportedEncodingException {
+		MessageDigest md;
+		md = MessageDigest.getInstance("SHA-1");
+		byte[] md5 = new byte[64];
+		md.update(text.getBytes("iso-8859-1"), 0, text.length());
+		md5 = md.digest();
+		return convertedToHex(md5);
+	}
+
+	private static String convertedToHex(byte[] data) {
+		StringBuffer buf = new StringBuffer();
+
+		for (int i = 0; i < data.length; i++) {
+			int halfOfByte = (data[i] >>> 4) & 0x0F;
+			int twoHalfBytes = 0;
+
+			do {
+				if ((0 <= halfOfByte) && (halfOfByte <= 9)) {
+					buf.append((char) ('0' + halfOfByte));
+				}
+
+				else {
+					buf.append((char) ('a' + (halfOfByte - 10)));
+				}
+
+				halfOfByte = data[i] & 0x0F;
+
+			} while (twoHalfBytes++ < 1);
+		}
+		return buf.toString();
+	}
+
+}

@@ -1,0 +1,167 @@
+package in.cdac.epramaan.otp.model;
+
+import java.util.UUID;
+
+public class OtpGenRequest {
+	private String dept_id;
+	private UUID txn_id;
+	private String mobile_number;
+	private String email;
+	private int otp_mode;
+	private long timestamp;
+	private String purpose;
+	private String signature;
+	private String template_type;
+	private String template_id;
+	private String country_code;
+	private String mobile_number_type;
+	private String version;
+	private String keyword;
+	private String custom_template;
+	private String custom_signature;
+	
+	
+	
+	
+	public OtpGenRequest(){
+		signature = null;
+	}
+	
+	
+	
+
+	public String getTemplate_type() {
+		return template_type;
+	}
+
+	public void setTemplate_type(String template_type) {
+		this.template_type = template_type;
+	}
+
+	public String getDept_id() {
+		return dept_id;
+	}
+
+	public void setDept_id(String dept_id) {
+		this.dept_id = dept_id;
+	}
+
+	public UUID getTxn_id() {
+		return txn_id;
+	}
+
+	public void setTxn_id(UUID txn_id) {
+		this.txn_id = txn_id;
+	}
+
+	public String getMobile_number() {
+		return mobile_number;
+	}
+
+	public void setMobile_number(String mobile_number) {
+		this.mobile_number = mobile_number;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public int getOtp_mode() {
+		return otp_mode;
+	}
+
+	public void setOtp_mode(int otp_mode) {
+		this.otp_mode = otp_mode;
+	}
+
+	public long getTimestamp() {
+		return timestamp;
+	}
+
+	public void setTimestamp(long timestamp) {
+		this.timestamp = timestamp;
+	}
+
+	public String getPurpose() {
+		return purpose;
+	}
+
+	public void setPurpose(String purpose) {
+		this.purpose = purpose;
+	}
+
+	public String getSignature() {
+		return signature;
+	}
+
+	public void setSignature(String signature) {
+		this.signature = signature;
+	}
+
+	public String getTemplate_id() {
+		return template_id;
+	}
+
+	public void setTemplate_id(String template_id) {
+		this.template_id = template_id;
+	}
+
+	public String getCountry_code() {
+		return country_code;
+	}
+
+	public void setCountry_code(String country_code) {
+		this.country_code = country_code;
+	}
+
+
+	public String getMobile_number_type() {
+		return mobile_number_type;
+	}
+
+	public void setMobile_number_type(String mobile_number_type) {
+		this.mobile_number_type = mobile_number_type;
+	}
+
+	public String getVersion() {
+		return version;
+	}
+
+	public void setVersion(String version) {
+		this.version = version;
+	}
+
+	public String getKeyword() {
+		return keyword;
+	}
+
+	public void setKeyword(String keyword) {
+		this.keyword = keyword;
+	}
+
+	public String getCustom_template() {
+		return custom_template;
+	}
+	
+	public void setCustom_template(String custom_template) {
+		this.custom_template = custom_template;
+	}
+
+	public String getCustom_signature() {
+		return custom_signature;
+	}
+
+	public void setCustom_signature(String custom_signature) {
+		this.custom_signature = custom_signature;
+	}
+	
+	
+	
+	
+	
+	
+}

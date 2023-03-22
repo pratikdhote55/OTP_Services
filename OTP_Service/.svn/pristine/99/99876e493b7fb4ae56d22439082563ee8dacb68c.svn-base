@@ -1,0 +1,45 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.common.dao;
+
+import java.util.HashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+import in.cdac.epramaan.otp.common.model.ConfigPara;
+import in.cdac.epramaan.otp.util.ConfigParaKey;
+
+/**
+ * The Class JdbcMasterConfigRepository.
+ */
+@Component
+public class JdbcMasterConfigRepository implements MasterConfigRepository {
+
+	/** The jdbc template. */
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	/** The Constant logger. */
+	private static final Logger logger = LoggerFactory.getLogger(JdbcMasterConfigRepository.class);
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * in.cdac.epramaan.common.dao.MasterConfigRepository#getAllConfigPara()
+	 */
+	@Override
+	public HashMap<ConfigParaKey, ConfigPara> getAllConfigPara() {
+		try {
+			String sql = "Select * from config_para";
+			return jdbcTemplate.query(sql, new ParaConfigResultSetExtractor());
+		} catch (EmptyResultDataAccessException e) {
+			logger.error("Reading info error for getAllConfigPara", e);
+			return null;
+		}
+	}
+}

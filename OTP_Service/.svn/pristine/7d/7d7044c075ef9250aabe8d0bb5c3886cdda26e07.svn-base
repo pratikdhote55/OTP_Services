@@ -1,0 +1,57 @@
+package in.cdac.epramaan.otp.util;
+
+public enum Constants {
+
+	EMAIL("Email"), MOBILE("mobileNumber"),
+
+	SMS_OTP_CONTENT("sms.OTP.content"),
+	
+	SMS_SENDING_FAILED("error.sms.failed"),
+
+	EMAIL_OTP_SUBJECT("smtp.emailOTPsubject"), 
+	
+	EMAIL_OTP_CONTENT1("smtp.emailOTPcontent1"), 
+	
+	EMAIL_OTP_CONTENT2("smtp.emailOTPcontent2"), 
+	
+	EMAIL_OTP_CONTENT3("smtp.emailOTPcontent3"),
+	
+	TEMPLATE_TYPE_DEFAULT("default"),
+	
+	TEMPLATE_TYPE_KEYWORD("keyword"),
+	
+	TEMPLATE_TYPE_TEMPLATE_ID_BASED("template_id"),
+	
+	MOBILE_TYPE_DOMESTIC("D"),
+	
+	MOBILE_TYPE_INTERNATIONAL("I"),
+	
+	DEFAULT_VERSION("1.0"),
+	
+	VERSION_2_0("2.0"),
+	
+	
+	;
+
+	/** The value. */
+	private final String value;
+
+	/**
+	 * Instantiates a new UI constants.
+	 * 
+	 * @param value
+	 *            the value
+	 */
+	Constants(String value) {
+		this.value = value;
+	}
+
+	/**
+	 * Gets the value.
+	 * 
+	 * @return the value
+	 */
+	public String getValue() {
+		return value;
+	}
+}

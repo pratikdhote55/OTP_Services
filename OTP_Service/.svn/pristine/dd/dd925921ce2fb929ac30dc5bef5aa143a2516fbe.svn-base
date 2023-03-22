@@ -1,0 +1,91 @@
+@RequestMapping(value="/verifyOTP2", method=RequestMethod.POST)
+	public @ResponseBody OtpVerifyResponse verifyOtp2(@RequestBody OtpVerifyRequest request){
+		logger.info("Received request for OTP verification.");
+		OtpVerifyResponse response = new OtpVerifyResponse();
+		
+		Response resp = requestVAlidator.validateVerifyOtpRequest(request);
+		if(!resp.isStatus()){
+			response.setErrorCode(resp.getErrorCode());
+			response.setErrorMessage(environment.getProperty(response.getErrorCode()));
+			logger.info(response.getErrorCode()+" -- "+response.getErrorMessage());
+			return response;
+		}
+		
+		logger.info("Calling service to verify OTP");
+		OTP otp = daoOperations.getOtp(request);
+		if(otp.getResponse().isStatus()){
+			response = otpBD.verifyOTP(otp,request.getOtp_value());
+			if(response.isStatus() == true || (response.isStatus() == false && !response.getErrorCode().equals(ErrorCodes.SYSTEM_INTERNAL_ERROR))){
+				daoOperations.updateOtpTransaction(request.getTxn_id(), new Timestamp(request.getTimestamp()), response.isStatus(),response.getErrorCode());
+			}
+		}else{
+			response = new OtpVerifyResponse(otp.getResponse());
+		}
+		response.setDept_id(request.getDept_id());
+		response.setTxn_id(request.getTxn_id());
+		response.setErrorMessage(environment.getProperty(response.getErrorCode()));
+		return response; 
+	}
+	
+	
+	
+	@RequestMapping(value="/genOTP", method=RequestMethod.POST)
+	public @ResponseBody OtpGenResponse generateOTP(@RequestBody OtpGenRequest request){
+		logger.info("Received request for OTP generation.");
+		OtpGenResponse response = new OtpGenResponse();
+		response.setTxn_id(request.getTxn_id());
+		response.setDept_id(request.getDept_id());
+		response.setStatus(false);
+
+		Response resp = requestVAlidator.validateOtpGenRequest(request);
+		if(!resp.isStatus()){
+			response.setErrorCode(resp.getErrorCode());
+			response.setErrorMessage(environment.getProperty(response.getErrorCode()));
+			logger.info(response.getErrorCode()+" -- "+response.getErrorMessage());
+			return response;
+		}
+		
+		String deptName = daoOperations.getDeptName(request.getDept_id());
+		logger.info("Dept Name "+deptName);
+		
+		logger.info("Calling service to generate OTP");
+		OTP otp = otpBD.generateOTP(request);
+		
+		if(otp.getResponse().isStatus()){
+			//successfully otp generated
+			switch (request.getOtp_mode()) {
+				case OTP_Mode.SMS_ONLY:
+					logger.info("sending otp via sms");
+					sendOTPBD.sendSMS(otp.getOtpToken(),request.getMobile_number(),deptName,request.getTxn_id());
+					break;
+				case OTP_Mode.EMAIL_ONLY:
+					logger.info("Sending otp via email");
+					sendOTPBD.sendEmail(otp.getOtpToken(),request.getEmail(),deptName,request.getTxn_id());
+					break;
+				case OTP_Mode.SMS_AND_EMAIL:
+					logger.info("Sending otp via sms and email");
+					sendOTPBD.sendSMS(otp.getOtpToken(),request.getMobile_number(),deptName,request.getTxn_id());
+					sendOTPBD.sendEmail(otp.getOtpToken(),request.getEmail(),deptName,request.getTxn_id());
+					break;
+				default:
+					response.setErrorCode(ErrorCodes.INVALID_OTP_MODE);
+					response.setErrorMessage(environment.getProperty(ErrorCodes.INVALID_OTP_MODE));
+					return response;
+			}
+			
+			Response dbResponse = daoOperations.insertTransactionRecord(request, otp);
+			if(dbResponse.isStatus()){
+				response.setErrorCode(ErrorCodes.SUCCESS);
+				response.setErrorMessage("Otp successfully sent");
+				response.setStatus(true);
+				return response;
+			}
+			response.setErrorCode(dbResponse.getErrorCode());
+			response.setErrorMessage(dbResponse.getErrorMessage());
+		}else{
+			response.setErrorCode(otp.getResponse().getErrorCode());
+			response.setErrorMessage(otp.getResponse().getErrorMessage());
+		}
+		response.setErrorMessage(environment.getProperty(response.getErrorCode()));
+		return response; 
+	}

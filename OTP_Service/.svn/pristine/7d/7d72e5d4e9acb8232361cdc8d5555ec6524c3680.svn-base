@@ -1,0 +1,86 @@
+package in.cdac.epramaan.otp.util.queue.email;
+
+
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.stereotype.Component;
+
+import in.cdac.epramaan.otp.common.bd.MasterConfigBD;
+import in.cdac.epramaan.otp.util.ConfigParaKey;
+import in.cdac.epramaan.otp.util.EmailService;
+
+@Component
+@Scope("prototype")
+public class EmailTaskExecutor {
+	final static Logger logger = LoggerFactory.getLogger(EmailTaskExecutor.class);
+	@Autowired
+	TaskExecutor taskExecutor;
+
+	@Autowired
+	MasterConfigBD masterConfigBD;
+	
+	@Autowired
+	EmailService emailService;
+
+	private class QueueObjectProcessor implements Runnable {
+
+		private EmailQueueMessageObject message;
+		private UUID txnId;
+
+		public QueueObjectProcessor(EmailQueueMessageObject message,UUID txnId) {
+			this.message = message;
+			this.txnId = txnId;
+		}
+
+		public void run() {
+			EmailQueueMessageObject emailDetail = message;
+			LinkedHashMap<String, String> emailLinkedHashMap = emailDetail.getEmailLinkedHashMap();
+			// smtpHost = "smtp.cdac.in";
+			String smtpHost = masterConfigBD.getConfigPara(ConfigParaKey.SMTP_HOST).getParavalue();
+			// smtpPort = "587";
+			String smtpPort = masterConfigBD.getConfigPara(ConfigParaKey.SMTP_PORT).getParavalue();
+			// smtpUserId = "epramaan-mumbai@cdac.in";
+			String smtpUserId = masterConfigBD.getConfigPara(ConfigParaKey.SMTP_USER_ID).getParavalue();
+			// smtpPassword = "Welcome123";
+			String smtpPassword = masterConfigBD.getConfigPara(ConfigParaKey.SMTP_PASSWORD).getParavalue();
+
+			Set<Entry<String, String>> set = emailLinkedHashMap.entrySet();
+			Iterator<Entry<String, String>> i = set.iterator();
+			String email = null,emailSubject = null,emailContent = null;
+			while (i.hasNext()) {
+				Entry<String, String> me = i.next();
+				if (me.getKey().equals("email")) {
+					email = me.getValue();
+				}
+				else if (me.getKey().equals("emailSubject")) {
+					emailSubject = me.getValue();
+				}
+				else if (me.getKey().equals("emailContent")) {
+					emailContent = me.getValue();
+				}
+			}
+			emailService.sendEmail(email, emailSubject, emailContent, smtpHost, smtpPort, smtpUserId, smtpPassword,txnId);
+			logger.debug("Ending of EmailService ");
+		}
+	}
+
+	public void addToQueue(final String email, final String emailSubject, final String emailContent,UUID txnId) {
+		logger.debug("In addToQueue");
+		try {
+			taskExecutor
+					.execute(new QueueObjectProcessor(new EmailQueueMessageObject(email, emailSubject, emailContent),txnId));
+		} catch (Exception e) {
+			logger.error("Error in adding mail message object in blocking Queue: ",e);
+		}
+		logger.debug("Email successfully added to EMAIL_QUEUE");
+	}
+}

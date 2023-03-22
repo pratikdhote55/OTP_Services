@@ -1,0 +1,34 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.service;
+
+import in.cdac.epramaan.otp.model.OtpGenRequest;
+import in.cdac.epramaan.otp.model.OTP;
+import in.cdac.epramaan.otp.model.OtpVerifyRequest;
+import in.cdac.epramaan.otp.model.OtpVerifyResponse;
+
+/**
+ * The Interface OTPBD.
+ */
+public interface OTPBD {
+
+	/**
+	 * Generate otp.
+	 *
+	 * @param user
+	 *            the user
+	 * @return the user response
+	 */
+	public OTP generateOTP(OtpGenRequest request);
+
+	/**
+	 * Verify otp.
+	 *
+	 * @param user
+	 *            the user
+	 * @return the user response
+	 */
+	public OtpVerifyResponse verifyOTP(OTP otpResponse, String otp,int otpAsHash);
+
+}

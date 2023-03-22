@@ -1,0 +1,72 @@
+package in.cdac.epramaan.otp.model;
+
+public class TemplateTypeCustomization {
+	
+	private String template_type;
+	
+	private String keyword;
+	
+	private String thirdPartyTemplate;
+	
+	private String msgTemplate;
+	
+	private String templateId;
+	
+	private String thirdPartySignature;
+	
+
+	public String getTemplate_type() {
+		return template_type;
+	}
+
+	public void setTemplate_type(String template_type) {
+		this.template_type = template_type;
+	}
+
+	public String getKeyword() {
+		return keyword;
+	}
+
+	public void setKeyword(String keyword) {
+		this.keyword = keyword;
+	}
+
+	public String getThirdPartyTemplate() {
+		return thirdPartyTemplate;
+	}
+
+	public void setThirdPartyTemplate(String thirdPartyTemplate) {
+		this.thirdPartyTemplate = thirdPartyTemplate;
+	}
+
+	public String getMsgTemplate() {
+		return msgTemplate;
+	}
+
+	public void setMsgTemplate(String msgTemplate) {
+		this.msgTemplate = msgTemplate;
+	}
+
+	public String getTemplateId() {
+		return templateId;
+	}
+
+	public void setTemplateId(String templateId) {
+		this.templateId = templateId;
+	}
+
+	public String getThirdPartySignature() {
+		return thirdPartySignature;
+	}
+
+	public void setThirdPartySignature(String thirdPartySignature) {
+		this.thirdPartySignature = thirdPartySignature;
+	}
+	
+	
+	
+	
+	
+	
+
+}

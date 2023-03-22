@@ -1,0 +1,8 @@
+package in.cdac.epramaan.otp.model;
+
+public class RequestType {
+	
+	public static final String REQUEST_SEND_OTP = "SEN";
+	public static final String REQUEST_VERIFY_OTP = "VER";
+
+}

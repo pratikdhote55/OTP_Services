@@ -1,0 +1,20 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.common.bd;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+
+import in.cdac.epramaan.otp.common.model.ConfigPara;
+import in.cdac.epramaan.otp.util.ConfigParaKey;
+
+/**
+ * The Interface MasterConfigBD.
+ */
+public interface MasterConfigBD {
+	public ConfigPara getConfigPara(ConfigParaKey key);
+}

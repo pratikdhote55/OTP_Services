@@ -1,0 +1,58 @@
+package in.cdac.epramaan.otp.model;
+
+import java.util.UUID;
+
+public class OtpGenResponse {
+
+	private String dept_id;
+	private UUID txn_id;
+	private String errorCode;
+	private String errorMessage;
+	private boolean status;
+
+	public String getDept_id() {
+		return dept_id;
+	}
+
+	public void setDept_id(String dept_id) {
+		this.dept_id = dept_id;
+	}
+
+	public UUID getTxn_id() {
+		return txn_id;
+	}
+
+	public void setTxn_id(UUID txn_id) {
+		this.txn_id = txn_id;
+	}
+
+	public boolean isStatus() {
+		return status;
+	}
+
+	public void setStatus(boolean status) {
+		this.status = status;
+	}
+
+	public String getErrorCode() {
+		return errorCode;
+	}
+
+	public void setErrorCode(String errorCode) {
+		this.errorCode = errorCode;
+	}
+
+	public String getErrorMessage() {
+		return errorMessage;
+	}
+
+	public void setErrorMessage(String errorMessage) {
+		this.errorMessage = errorMessage;
+	}
+
+	public void setResponse(Response response) {
+		status = response.isStatus();
+		errorCode = response.getErrorCode();
+		errorMessage = response.getErrorMessage();
+	}
+}

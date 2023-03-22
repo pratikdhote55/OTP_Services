@@ -1,0 +1,29 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.bd;
+
+import java.sql.Timestamp;
+import java.util.UUID;
+
+import in.cdac.epramaan.otp.model.CustomSMSAccountInfo;
+import in.cdac.epramaan.otp.model.Response;
+import in.cdac.epramaan.otp.model.TemplateTypeCustomization;
+
+/**
+ * The Interface SendOTPBD.
+ */
+public interface SendOTPBD {
+
+	public Response sendEmail(String otp, String email, String purpose, Timestamp validityTime, UUID txnId);
+
+
+	public Response sendSMS(String otp, String mobile, Timestamp validityTime, String purpose, UUID txnId,String msgTemplate, String templateId, String signature);
+
+//	public Response sendSMS(String otp, String mobile, Timestamp validityTime, String purpose, UUID txnId,String msgTemplate, String templateId, String signature, boolean custom_sms_account, CustomSMSAccountInfo customSMSAccountInfo, TemplateTypeCustomization templateTypeInfo);
+
+	public Response sendSMS(String otp, String mobile, Timestamp validityTime, UUID txnId,
+			boolean custom_sms_account, CustomSMSAccountInfo smsAccInfo, TemplateTypeCustomization templateTypeInfo);
+
+
+}

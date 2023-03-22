@@ -1,0 +1,127 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.bd;
+
+import java.sql.Timestamp;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+
+import in.cdac.epramaan.otp.model.CustomSMSAccountInfo;
+import in.cdac.epramaan.otp.model.Response;
+import in.cdac.epramaan.otp.model.TemplateTypeCustomization;
+import in.cdac.epramaan.otp.util.Constants;
+import in.cdac.epramaan.otp.util.ErrorCodes;
+import in.cdac.epramaan.otp.util.queue.email.EmailTaskExecutor;
+import in.cdac.epramaan.otp.util.queue.sms.SmsTaskExecutor;
+import in.cdac.epramaan.otp.util.queue.sms.SmsTaskExecutor2_0;
+
+@Component
+public class SendOTPBDImpl implements SendOTPBD {
+
+	private static final Logger logger = LoggerFactory.getLogger(SendOTPBDImpl.class);
+
+	@Autowired
+	Environment environment;
+
+	@Autowired
+	SmsTaskExecutor smsTaskExecutor;
+	
+	@Autowired
+	SmsTaskExecutor2_0 smsTaskExecutor2_0;
+
+	@Autowired
+	EmailTaskExecutor emailTaskExecutor;
+
+	@Override
+	public Response sendEmail(String otp, String email,String purpose,Timestamp validityTime,UUID txnId) {
+		String time = leftPadded(validityTime.getHours())+":"+leftPadded(validityTime.getMinutes())+":"+leftPadded(validityTime.getSeconds());
+		String emailContent = String.format(environment.getProperty(Constants.EMAIL_OTP_CONTENT1.getValue()), purpose,otp,time,purpose);
+/*		String emailContent = environment.getProperty(Constants.EMAIL_OTP_CONTENT1.getValue())+purpose+" "
+				+ environment.getProperty(Constants.EMAIL_OTP_CONTENT2.getValue()) + otp
+				+ environment.getProperty(Constants.EMAIL_OTP_CONTENT3.getValue());*/
+		try {
+			logger.debug("Email OTP content is  : "+emailContent);
+			String emailSubject = String.format(environment.getProperty(Constants.EMAIL_OTP_SUBJECT.getValue()), purpose);
+			emailTaskExecutor.addToQueue(email, emailSubject, emailContent,txnId);
+			logger.debug("OTP sent successfully on registered email.");
+			return new Response(true,ErrorCodes.SUCCESS);
+		} catch (Exception e) {
+			logger.error("Failed to send OTP on registered email.",e);
+			return new Response(false,ErrorCodes.UNABLE_TO_SEND_OTP);
+		}
+	}
+
+	@Override
+	public Response sendSMS(String otp, String mobile,Timestamp validityTime, String purpose,UUID txnId,String msgTemplate,String templateId, String signature) {
+		String time = leftPadded(validityTime.getHours())+":"+leftPadded(validityTime.getMinutes())+":"+leftPadded(validityTime.getSeconds());
+		String smsContent = "";
+		if(signature != null)
+			smsContent = String.format(msgTemplate, purpose,otp,time, signature);
+		else
+			smsContent = String.format(msgTemplate, purpose,otp,time);
+		logger.debug("SMS OTP content is : "+smsContent);
+		try {
+			smsTaskExecutor.addToQueue(mobile, smsContent,txnId,templateId);
+		} catch (Exception e) {
+			logger.error("Failed to send SMS : ",e);
+			return new Response(false,ErrorCodes.UNABLE_TO_SEND_OTP);
+		}
+		return new Response(true,ErrorCodes.SUCCESS);
+	}
+	
+	private String leftPadded(int i){
+		return String.format("%02d", i);
+	}
+
+	@Override
+	public Response sendSMS(String otp, String mobile, Timestamp validityTime, UUID txnId,
+			boolean custom_sms_account, CustomSMSAccountInfo smsAccInfo, TemplateTypeCustomization templateTypeInfo) {
+		String time = leftPadded(validityTime.getHours())+":"+leftPadded(validityTime.getMinutes())+":"+leftPadded(validityTime.getSeconds());
+		String smsContent = "";
+		String signature = "";
+		if(templateTypeInfo.getKeyword() != null )
+		{
+			signature = templateTypeInfo.getKeyword();
+		}
+		
+		if(templateTypeInfo.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_DEFAULT.getValue()))
+		{
+			if(signature != null)
+				smsContent = String.format(templateTypeInfo.getMsgTemplate(),otp,time, signature);
+			else
+				smsContent = String.format(templateTypeInfo.getMsgTemplate(),otp,time);
+			logger.debug("SMS OTP content is : "+smsContent);
+		}
+		
+		if(templateTypeInfo.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_KEYWORD.getValue()))
+		{
+			if(signature != null)
+				smsContent = String.format(templateTypeInfo.getMsgTemplate(),templateTypeInfo.getKeyword(),otp,time, signature);
+			else
+				smsContent = String.format(templateTypeInfo.getMsgTemplate(),otp,time);
+			logger.debug("SMS OTP content is : "+smsContent);
+		}
+		if(templateTypeInfo.getTemplate_type().equalsIgnoreCase(Constants.TEMPLATE_TYPE_TEMPLATE_ID_BASED.getValue()))
+		{
+			
+				smsContent = String.format(templateTypeInfo.getThirdPartyTemplate(),templateTypeInfo.getThirdPartySignature(),otp,time, signature);
+			
+			logger.debug("SMS OTP content is : "+smsContent);
+		}
+		
+		
+		try {
+			smsTaskExecutor2_0.addToQueue(mobile, smsContent,txnId,templateTypeInfo.getTemplateId(), custom_sms_account,smsAccInfo);
+		} catch (Exception e) {
+			logger.error("Failed to send SMS : ",e);
+			return new Response(false,ErrorCodes.UNABLE_TO_SEND_OTP);
+		}
+		return new Response(true,ErrorCodes.SUCCESS);
+	}
+}

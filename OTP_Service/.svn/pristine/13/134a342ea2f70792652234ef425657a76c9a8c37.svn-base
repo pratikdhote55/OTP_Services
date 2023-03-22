@@ -1,0 +1,44 @@
+package in.cdac.epramaan.otp.util;
+
+public class ErrorCodes {
+	
+	public static final String DB_EXCEPTION = "101";
+	public static final String DUPLICATE_TXN_ID = "102";
+	public static final String INVALID_TXN_IN = "103";
+	public static final String INVALID_DEPT_ID = "104";
+	public static final String INVALID_EMAIL = "105";
+	public static final String INVALID_MOBILE_NO = "106";
+	public static final String INVALID_OTP_MODE = "107";
+	public static final String INVALID_REQUEST_TIME = "108";
+	public static final String TXN_ID_NOT_AVAILABLE = "109";
+	public static final String MISSING_PURPOSE_ATTRIBUTE = "110";
+	public static final String INVALID_REQUEST_DATA = "111";
+	public static final String DEPT_NOT_ACTIVATED = "112";
+	public static final String MISSING_MOBILE_NUMBER_TYPE = "113";
+	public static final String INVALID_MOBILE_NUMBER_TYPE = "114";
+	public static final String INVALID_COUNTRY_CODE = "115";
+	public static final String MISSING_COUNTRY_CODE = "116";
+	public static final String INVALID_API_VERSION = "117";
+	public static final String MISSING_KEYWORD_ATTRIBUTE = "118";
+	public static final String INVALID_TEMPLATE_TYPE = "119";
+	
+	
+	
+	public static final String OTP_GEN_FAILED = "301";
+	public static final String UNABLE_TO_SEND_OTP = "302";
+	public static final String PROBLEM_IN_SMS_GATEWAY = "303";
+	
+	public static final String SUCCESS = "200";
+	public static final String INVALID_OTP = "201";
+	public static final String OTP_TIME_EXPIRED = "202";
+	public static final String TXN_ALREADY_VERIFIED = "203";
+
+	//either all the attempt are made or otp verified successfully.
+	public static final String OTP_IS_EXPIRED = "204";
+	
+	public static final String SYSTEM_INTERNAL_ERROR = "501";
+	public static final String ERROR_IN_DECRYPT_REQUEST = "502";
+	public static final String UNABLE_MAKE_HASH_OTP = "503";
+	
+	
+}

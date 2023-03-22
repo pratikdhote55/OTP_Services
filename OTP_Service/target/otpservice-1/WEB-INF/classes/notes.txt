@@ -1,0 +1,5 @@
+OTP verification
+- if the txn id is not present in the db, then return invalid txn id (can't update the txn table)
+- if the request time is not with in the server time slab, return invalid request time (can't update the txn table)
+- when all the attempts made, return OTP is expired. (can't update the txn table)
+- when otp is verified successfully but still client sending the same txn id (still attemps some are there). Return OTP is expired (can't update the txn table)

@@ -1,0 +1,49 @@
+package in.cdac.epramaan.otp.model;
+
+public class CustomEmailAccountInfo {
+
+	String smtp_host;
+	String smtp_port;
+	String smtp_userId;
+	String smtp_password;
+	public CustomEmailAccountInfo() {
+		super();
+	}
+	public CustomEmailAccountInfo(String smtp_host, String smtp_port, String smtp_userId, String smtp_password) {
+		super();
+		this.smtp_host = smtp_host;
+		this.smtp_port = smtp_port;
+		this.smtp_userId = smtp_userId;
+		this.smtp_password = smtp_password;
+	}
+	public String getSmtp_host() {
+		return smtp_host;
+	}
+	public void setSmtp_host(String smtp_host) {
+		this.smtp_host = smtp_host;
+	}
+	public String getSmtp_port() {
+		return smtp_port;
+	}
+	public void setSmtp_port(String smtp_port) {
+		this.smtp_port = smtp_port;
+	}
+	public String getSmtp_userId() {
+		return smtp_userId;
+	}
+	public void setSmtp_userId(String smtp_userId) {
+		this.smtp_userId = smtp_userId;
+	}
+	public String getSmtp_password() {
+		return smtp_password;
+	}
+	public void setSmtp_password(String smtp_password) {
+		this.smtp_password = smtp_password;
+	}
+	@Override
+	public String toString() {
+		return "CustomEmailAccountInfo [smtp_host=" + smtp_host + ", smtp_port=" + smtp_port + ", smtp_userId="
+				+ smtp_userId + ", smtp_password=" + smtp_password + "]";
+	}
+		
+}

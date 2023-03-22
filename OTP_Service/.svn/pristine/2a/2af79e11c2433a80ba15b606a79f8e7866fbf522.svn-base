@@ -1,0 +1,22 @@
+/*
+ * 
+ */
+package in.cdac.epramaan.otp.common.dao;
+
+import java.util.HashMap;
+import in.cdac.epramaan.otp.common.model.ConfigPara;
+import in.cdac.epramaan.otp.util.ConfigParaKey;
+
+/**
+ * The Interface MasterConfigRepository.
+ */
+public interface MasterConfigRepository {
+
+	/**
+	 * Gets the all config para.
+	 *
+	 * @return the all config para
+	 */
+	public HashMap<ConfigParaKey, ConfigPara> getAllConfigPara();
+
+}

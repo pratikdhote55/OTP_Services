@@ -1,0 +1,91 @@
+package in.cdac.epramaan.otp.model;
+
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.UUID;
+
+public class OTP {
+	private String otpToken;
+	private String enOtpToken;
+	private Timestamp otpValidityTime;
+	private Timestamp verifyRequestTime;
+	private Response response;
+	private UUID txnId;
+	private String responseCode;
+	private int attemptCount;
+	private boolean otpVerifyStatus;
+	
+	public OTP(){
+		
+	}
+	
+	public OTP(Response response){
+		this.response = response;
+	}
+	
+	public String getOtpToken() {
+		return otpToken;
+	}
+	public void setOtpToken(String otpToken) {
+		this.otpToken = otpToken;
+	}
+	public String getEnOtpToken() {
+		return enOtpToken;
+	}
+	public void setEnOtpToken(String enOtpToken) {
+		this.enOtpToken = enOtpToken;
+	}
+	public Timestamp getOtpValidityTime() {
+		return otpValidityTime;
+	}
+	public void setOtpValidityTime(Timestamp otpValidityTime) {
+		this.otpValidityTime = otpValidityTime;
+	}
+	public Response getResponse() {
+		return response;
+	}
+	public void setResponse(Response response) {
+		this.response = response;
+	}
+
+	public Timestamp getVerifyRequestTime() {
+		return verifyRequestTime;
+	}
+
+	public void setVerifyRequestTime(Timestamp verifyRequestTime) {
+		this.verifyRequestTime = verifyRequestTime;
+	}
+
+	public UUID getTxnId() {
+		return txnId;
+	}
+
+	public void setTxnId(UUID txnId) {
+		this.txnId = txnId;
+	}
+
+	public String getResponseCode() {
+		return responseCode;
+	}
+
+	public void setResponseCode(String responseCode) {
+		this.responseCode = responseCode;
+	}
+
+	public int getAttemptCount() {
+		return attemptCount;
+	}
+
+	public void setAttemptCount(int attemptCount) {
+		this.attemptCount = attemptCount;
+	}
+
+	public boolean isOtpVerifyStatus() {
+		return otpVerifyStatus;
+	}
+
+	public void setOtpVerifyStatus(boolean otpVerifyStatus) {
+		this.otpVerifyStatus = otpVerifyStatus;
+	}
+}

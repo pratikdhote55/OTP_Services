@@ -1,0 +1,96 @@
+package in.cdac.epramaan.otp.util.queue.sms;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.stereotype.Component;
+
+import in.cdac.epramaan.otp.common.bd.MasterConfigBD;
+import in.cdac.epramaan.otp.util.ConfigParaKey;
+import in.cdac.epramaan.otp.util.SMSService;
+
+@Component
+@Scope("prototype")
+public class SmsTaskExecutor {
+
+	@Autowired
+	TaskExecutor taskExecutor;
+
+	@Autowired
+	MasterConfigBD masterConfigBD;
+
+	@Autowired
+	SMSService smsService;
+
+	final static Logger logger = LoggerFactory.getLogger(SmsTaskExecutor.class);
+
+	private class QueueObjectProcessor implements Runnable {
+		private SmsQueueMessageObject message;
+		private UUID txnId;
+		private String templateId;
+
+		public QueueObjectProcessor(SmsQueueMessageObject message, UUID txnId,String templateId) {
+			// logger.debug("SMS object created ");
+			this.message = message;
+			this.txnId = txnId;
+			this.templateId = templateId;
+		}
+
+		public void run() {
+			try {
+				logger.debug("Executing to SMS service.");
+				SmsQueueMessageObject smsDetail = this.message;
+				LinkedHashMap<String, String> smsLinkedHashMap = smsDetail.getSmsLinkedHashMap();
+				// username = "smsepramaan";
+				String username = masterConfigBD.getConfigPara(ConfigParaKey.SMS_USERNAME).getParavalue();
+				// password = "epramaan@123";
+				String password = masterConfigBD.getConfigPara(ConfigParaKey.SMS_PASSWORD).getParavalue();
+				// senderid = "PRAMAN";
+				String senderid = masterConfigBD.getConfigPara(ConfigParaKey.SMS_SENDER_ID).getParavalue();
+				// secureKey = "b3a83aee-6696-411e-aaba-4b5b04f92099";
+				String secureKey = masterConfigBD.getConfigPara(ConfigParaKey.SMS_SECURE_KEY).getParavalue();
+				// url = new
+				// URL("https://msdgweb.mgov.gov.in/esms/sendsmsrequest");
+				URL url = new URL(masterConfigBD.getConfigPara(ConfigParaKey.SMS_URL).getParavalue());
+//				URL url = new URL("https://msdgweb.mgov.gov.in/esms/sendsmsrequestDLT");
+
+				Set<Entry<String, String>> set = smsLinkedHashMap.entrySet();
+				Iterator<Entry<String, String>> i = set.iterator();
+				String mobile = null, smsContent = null;
+				while (i.hasNext()) {
+					Entry<String, String> me = i.next();
+					if (me.getKey().equals("mobile")) {
+						mobile = me.getValue();
+					}
+					if (me.getKey().equals("smsContent")) {
+						smsContent = me.getValue();
+					}
+				}
+				smsService.sendSMS(mobile, smsContent, username, password, senderid, url, secureKey, txnId, templateId);
+				logger.debug("Ending of SMSService ");
+			} catch (MalformedURLException excp) {
+				logger.error("Queue Interrupted ", excp);
+			} catch (Exception excp) {
+				logger.error("Queue Interrupted ", excp);
+			}
+		}
+	}
+
+	public void addToQueue(String mobileNumber, String smsContent, UUID txnId,String templateId) {
+		try {
+			taskExecutor.execute(new QueueObjectProcessor(new SmsQueueMessageObject(mobileNumber, smsContent), txnId,templateId));
+		} catch (Exception e) {
+			logger.error("Error in adding sms message object in blocking Queue : ", e);
+		}
+	}
+}

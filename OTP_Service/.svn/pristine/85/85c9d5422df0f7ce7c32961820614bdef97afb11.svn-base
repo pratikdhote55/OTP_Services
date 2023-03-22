@@ -1,0 +1,2 @@
+sms.OTP.content = Dear User, Your OTP for %s service is %s valid till %s. DO NOT SHARE IT WITH ANYONE.
+sms.OTP.error.subject = Unable to send OTP via SMS

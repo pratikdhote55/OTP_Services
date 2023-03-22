@@ -1,0 +1,501 @@
+package in.cdac.epramaan.otp.dao;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import in.cdac.epramaan.otp.model.OtpGenRequest;
+import in.cdac.epramaan.otp.model.CustomSMSAccountInfo;
+import in.cdac.epramaan.otp.model.Dept;
+import in.cdac.epramaan.otp.model.DeptEmailTemplateMapping;
+import in.cdac.epramaan.otp.model.DeptSmsTemplateMapping;
+import in.cdac.epramaan.otp.model.OTP;
+import in.cdac.epramaan.otp.model.OtpVerifyRequest;
+import in.cdac.epramaan.otp.model.Response;
+import in.cdac.epramaan.otp.util.ErrorCodes;
+
+@Repository
+public class DaoOperation {
+
+	private static final Logger logger = LoggerFactory.getLogger(DaoOperation.class);
+
+	@Autowired
+	private DBQueries dbQueries;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	@Transactional
+	public Response insertTransactionRecord(OtpGenRequest request, OTP otpResponse) {
+		try {
+			int attempted_count = 0;
+			int statusoferror = jdbcTemplate.update(dbQueries.insertOtpTxn(),
+					new Object[] { request.getDept_id(), request.getTxn_id(), request.getOtp_mode(),
+							otpResponse.getEnOtpToken(), request.getMobile_number(), request.getEmail(),
+							otpResponse.getOtpValidityTime(), new Timestamp(request.getTimestamp()), attempted_count });
+			if (statusoferror != 0) {
+				logger.debug("Transaction successfully inserted");
+				return new Response(true);
+			} else {
+				logger.debug("Problem in insertion");
+				return new Response(false, ErrorCodes.DB_EXCEPTION);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (DuplicateKeyException de) {
+			logger.error("Duplicate Key Exception ", de);
+			return new Response(false, ErrorCodes.DUPLICATE_TXN_ID);
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+
+	@Transactional
+	public Response updateOtpTransaction(UUID txnId, Timestamp timestamp, boolean verifyStatus, String responseCode,int attemptCount) {
+		try {
+			int statusoferror = jdbcTemplate.update(dbQueries.updateOtpTxn(),
+					new Object[] { timestamp, verifyStatus, responseCode, attemptCount, txnId });
+			if (statusoferror != 0) {
+				logger.debug("Transaction updated successfully");
+				return new Response(true);
+			} else {
+				logger.debug("Failed to update OTP txn");
+				return new Response(false, ErrorCodes.DB_EXCEPTION);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+	
+	@Transactional
+	public OTP getOtp(OtpVerifyRequest request) {
+		RowMapper<OTP> myMapper = new RowMapper<OTP>() {
+			@Override
+			public OTP mapRow(ResultSet rs, int arg1) throws SQLException {
+				OTP otp = new OTP();
+				logger.debug("Otp value from DB : " + rs.getString("otp_value"));
+				otp.setEnOtpToken(rs.getString("otp_value"));
+				logger.debug("Otp validity time from DB : " + rs.getTimestamp("otp_validity_time"));
+				otp.setOtpValidityTime(rs.getTimestamp("otp_validity_time"));
+				otp.setVerifyRequestTime(rs.getTimestamp("verify_request_time"));
+				logger.debug("verify time " + rs.getTimestamp("verify_request_time"));
+				otp.setTxnId(UUID.fromString(rs.getString("txn_id")));
+				logger.debug("verify reponse code : "+rs.getString("response_code"));
+				logger.debug("attempted count : "+rs.getInt("attempt_count"));
+				otp.setAttemptCount(rs.getInt("attempt_count"));
+				otp.setResponseCode(rs.getString("response_code"));
+				otp.setOtpVerifyStatus(rs.getBoolean("otp_verify_status"));
+				return otp;
+			}
+		};
+		try {
+			OTP otp = jdbcTemplate.queryForObject(dbQueries.getOtp(),
+					new Object[] { request.getDept_id(), request.getTxn_id() }, myMapper);
+			if (otp == null) {
+				otp = new OTP();
+				otp.setResponse(new Response(false, ErrorCodes.INVALID_TXN_IN));
+			} else {
+				logger.debug("Otp record retrieved successfully");
+				otp.setResponse(new Response(true));
+			}
+			return otp;
+		} catch (EmptyResultDataAccessException e) {
+			logger.error("No Record Found : ", e);
+			return new OTP(new Response(false, ErrorCodes.INVALID_TXN_IN));
+		} catch (DataAccessException e) {
+			logger.error("Can not access the database : ", e);
+			return new OTP(new Response(false, ErrorCodes.DB_EXCEPTION));
+		}
+	}
+	
+	@Transactional
+	public Dept getDeptInfo(String deptId) {
+		logger.debug("Dept id validation at DB");
+		RowMapper<Dept> myMapper = new RowMapper<Dept>() {
+			@Override
+			public Dept mapRow(ResultSet rs, int arg1) throws SQLException {
+				Dept deptObj = new Dept();
+				CustomSMSAccountInfo smsAccInfo = new CustomSMSAccountInfo();
+				logger.debug("Fetching complete dept information from DB");
+				deptObj.setAttempts(rs.getInt("attempts"));
+				deptObj.setDept_name(rs.getString("dept_name"));
+				deptObj.setStatus(rs.getString("status"));
+				deptObj.setMsg_template(rs.getString("msg_template"));
+				deptObj.setTemplate_id(rs.getString("template_id"));
+				//deptObj.setEmail_sender_opt(rs.getString("email_sender_opt"));
+				//deptObj.setEmail_signature(rs.getString("email_signature"));
+				deptObj.setCustom_sms_account(rs.getBoolean("custom_sms_account"));
+				
+				smsAccInfo.setSender_id(rs.getString("sender_id"));
+				smsAccInfo.setSms_username(rs.getString("sms_user_name"));
+				smsAccInfo.setSms_pwd(rs.getString("sms_password"));
+				smsAccInfo.setSms_key(rs.getString("sms_key"));
+				deptObj.setSmsAccInfo(smsAccInfo);
+				
+				
+				return deptObj;
+			}
+		};
+		try {
+			Dept deptObj = jdbcTemplate.queryForObject(dbQueries.getDeptInfo(),new Object[] { deptId }, myMapper);
+			if (deptObj == null) {
+				deptObj = new Dept();
+				deptObj.setResponse(new Response(false, ErrorCodes.INVALID_DEPT_ID));
+				logger.error("Invalid dept id : "+deptId);
+			} else {
+				logger.debug("Valid dept id");
+				deptObj .setResponse(new Response(true));
+			}
+			return deptObj;
+		} catch (EmptyResultDataAccessException e) {
+			logger.error("No Record Found : ", e);
+			return new Dept(new Response(false, ErrorCodes.INVALID_DEPT_ID));
+		} catch (DataAccessException e) {
+			logger.error("Can not access the database : ", e);
+			return new Dept(new Response(false, ErrorCodes.DB_EXCEPTION));
+		}
+	}
+
+	@Transactional
+	public Response checkDeptIdValidity(String deptId) {
+		logger.debug("dept id from client : " + deptId);
+		try {
+			Integer count = jdbcTemplate.queryForObject(dbQueries.checkDeptIdValidity(), new Object[] { deptId },
+					Integer.class);
+			if (count == 1) {
+				logger.debug("Valid department id");
+				count = jdbcTemplate.queryForObject(dbQueries.checkDeptActivation(), new Object[] { deptId, "A"},
+						Integer.class);
+				if(count == 1){
+					logger.debug("Department Status is ACTIVATED");
+					return new Response(true);	
+				}else{
+					logger.debug("Department Status is NOT ACTIVATED");
+					return new Response(false, ErrorCodes.DEPT_NOT_ACTIVATED);
+				}
+			} else {
+				logger.debug("Invalid department Id");
+				return new Response(false, ErrorCodes.INVALID_DEPT_ID);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+
+	@Transactional
+	public Response checkTxnIdDuplicacy(UUID txnId) {
+		logger.debug("Txn id from client : " + txnId);
+		try {
+			Integer count = jdbcTemplate.queryForObject(dbQueries.checkTxnIdDuplicacy(), new Object[] { txnId },
+					Integer.class);
+			if (count == 0) {
+				logger.debug("Valid Transaction Id");
+				return new Response(true);
+			} else {
+				logger.debug("Duplicate Transaction Id");
+				return new Response(false, ErrorCodes.DUPLICATE_TXN_ID);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+
+	@Transactional
+	public Response checkTxnIdAvailability(UUID txnId) {
+		logger.debug("Txn id from client : " + txnId);
+		try {
+			Integer count = jdbcTemplate.queryForObject(dbQueries.checkTxnIdDuplicacy(), new Object[] { txnId },
+					Integer.class);
+			if (count == 1) {
+				logger.debug("Transaction id is available");
+				return new Response(true);
+			} else {
+				logger.debug("Transaction id is not available");
+				return new Response(false, ErrorCodes.TXN_ID_NOT_AVAILABLE);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+
+	@Transactional
+	public String getDeptName(String deptId) {
+		try {
+			String deptName = jdbcTemplate.queryForObject(dbQueries.getDeptName(), new Object[] { deptId },
+					String.class);
+			logger.debug("dept name from db is : " + deptName);
+			return deptName;
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return null;
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return null;
+		}
+	}
+	
+	@Transactional
+	public void testDBConnectivity() {
+		try {
+			Integer deptCount = jdbcTemplate.queryForObject(dbQueries.deptCountQuery(), Integer.class);
+			logger.debug("Total registered departments count : "+deptCount);
+		} catch (IllegalStateException ie) {
+			logger.error("Test DB Connectivity Exception ", ie);
+		} catch (Exception e) {
+			logger.error("Test DB Connectivity Exception ", e);
+		}
+	}
+
+	@Transactional
+	public UUID getLicenseKey(String deptId) {
+		try {
+			UUID licenseKey = jdbcTemplate.queryForObject(dbQueries.getLicenseKey(), new Object[] { deptId },
+					UUID.class);
+			logger.debug("license key from DB is : " + licenseKey);
+			return licenseKey;
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return null;
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return null;
+		}
+	}
+	
+	@Transactional
+	public int getMaxAttempts(String deptId) {
+		try {
+			Integer maxAttempts = jdbcTemplate.queryForObject(dbQueries.getMaxAttempts(), new Object[] { deptId },
+					Integer.class);
+			logger.debug("Maximum attempt for the dept "+deptId+" is  : " + maxAttempts);
+			return (maxAttempts == null) ? 1 : maxAttempts;
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return 1;
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return 1;
+		}
+	}
+	
+	//This will tell you how many verify otp attempts made till now
+	@Transactional
+	public int getAttemptedCount(String deptId) {
+		try {
+			Integer attemptedCount = jdbcTemplate.queryForObject(dbQueries.getAttemptedCount(), new Object[] { deptId },
+					Integer.class);
+			logger.debug("Attempted Count till now for the dept "+deptId+" is  : " + attemptedCount);
+			return (attemptedCount == null) ? 0 : attemptedCount;
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return 0;
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return 0;
+		}
+	}
+
+	@Transactional
+	public Response setSMSDeliveryTime(UUID txnId, Timestamp timestamp) {
+		try {
+			int statusoferror = jdbcTemplate.update(dbQueries.updateSMSDeliveryStatusQuery(),
+					new Object[] { timestamp, txnId });
+			if (statusoferror != 0) {
+				logger.debug("Update SMS delivery time");
+				return new Response(true);
+			} else {
+				logger.debug("Failed to update SMS delivery time");
+				return new Response(false, ErrorCodes.DB_EXCEPTION);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("Failed to update SMS delivery time: ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (Exception e) {
+			logger.error("Failed to update SMS delivery time: ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+
+	@Transactional
+	public Response setEmailDeliveryTime(UUID txnId, Timestamp timestamp) {
+		try {
+			int statusoferror = jdbcTemplate.update(dbQueries.updateEmailDeliveryStatusQuery(),
+					new Object[] { timestamp, txnId });
+			if (statusoferror != 0) {
+				logger.debug("Update Email delivery time");
+				return new Response(true);
+			} else {
+				logger.debug("Failed to update Email delivery time");
+				return new Response(false, ErrorCodes.DB_EXCEPTION);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("Failed to update Email delivery time: ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (Exception e) {
+			logger.error("Failed to update Email delivery time: ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+	
+	@Transactional
+	public Response insertLogs(String deptId, UUID txnId, Timestamp requestTime, String requestJson, Timestamp responseTime, String responseJson, String responseCode, String requestType) {
+		try {
+			UUID id = UUID.randomUUID();
+			if(txnId == null)
+				txnId = id;
+			int statusoferror = jdbcTemplate.update(dbQueries.insertLogs(),
+					new Object[] { id, deptId, txnId, requestTime,
+							requestJson, responseTime,
+							responseJson, responseCode,requestType});
+			if (statusoferror != 0) {
+				logger.debug("ReqRes Log successfully inserted");
+				return new Response(true);
+			} else {
+				logger.debug("Problem in insertion of ReqRes Log");
+				return new Response(false, ErrorCodes.DB_EXCEPTION);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (DuplicateKeyException de) {
+			logger.error("Duplicate Key Exception ", de);
+			return new Response(false, ErrorCodes.DUPLICATE_TXN_ID);
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+	
+	@Transactional
+	public Response updateResposneCode(UUID txnId, String responseCode) {
+		try {
+			int statusoferror = jdbcTemplate.update(dbQueries.updateResponseCode(),
+					new Object[] { responseCode, txnId });
+			if (statusoferror != 0) {
+				logger.debug("Transaction updated successfully");
+				return new Response(true);
+			} else {
+				logger.debug("Failed to update OTP txn");
+				return new Response(false, ErrorCodes.DB_EXCEPTION);
+			}
+		} catch (IllegalStateException ie) {
+			logger.error("DB Exception ", ie);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		} catch (Exception e) {
+			logger.error("DB Exception ", e);
+			return new Response(false, ErrorCodes.DB_EXCEPTION);
+		}
+	}
+	
+	
+	@Transactional
+	public DeptSmsTemplateMapping getDeptSmsTemplateMapping(String dept_id) {
+		logger.debug("DeptSmsTemplateMapping ");
+		RowMapper<DeptSmsTemplateMapping> myMapper = new RowMapper<DeptSmsTemplateMapping>() {
+			@Override
+			public DeptSmsTemplateMapping mapRow(ResultSet rs, int arg1) throws SQLException {
+				DeptSmsTemplateMapping smsTemplateMapping = new DeptSmsTemplateMapping();
+				
+				logger.info("Fetching Template mapping from DB");
+				
+				smsTemplateMapping.setMsg_template(rs.getString("msg_template"));
+				smsTemplateMapping.setTemplate_type(rs.getString("template_type"));
+				smsTemplateMapping.setTemplate_id(rs.getString("template_id"));
+				smsTemplateMapping.setDefault_signature(rs.getString("default_signature"));
+				
+				
+				return smsTemplateMapping;
+			}
+		};
+		try {
+			DeptSmsTemplateMapping smsTemplateMapping = jdbcTemplate.queryForObject(dbQueries.deptSmsTemplateMapping(),new Object[] { dept_id }, myMapper);
+			if (smsTemplateMapping == null) {
+				smsTemplateMapping = new DeptSmsTemplateMapping();
+				smsTemplateMapping.setResponse(new Response(false, ErrorCodes.INVALID_DEPT_ID));
+				logger.error("Invalid dept id : "+dept_id);
+			} else {
+				logger.debug("Valid dept id");
+				smsTemplateMapping .setResponse(new Response(true));
+			}
+			return smsTemplateMapping;
+		} catch (EmptyResultDataAccessException e) {
+			logger.error("No Record Found : ", e);
+			return new DeptSmsTemplateMapping(new Response(false, ErrorCodes.INVALID_DEPT_ID));
+		} catch (DataAccessException e) {
+			logger.error("Can not access the database : ", e);
+			return new DeptSmsTemplateMapping(new Response(false, ErrorCodes.DB_EXCEPTION));
+		}
+	}
+	
+	
+	@Transactional
+	public DeptEmailTemplateMapping getEmailSignatureOptionInfo(String dept_id) {
+		logger.debug("DeptSmsTemplateMapping ");
+		RowMapper<DeptEmailTemplateMapping> myMapper = new RowMapper<DeptEmailTemplateMapping>() {
+			@Override
+			public DeptEmailTemplateMapping mapRow(ResultSet rs, int arg1) throws SQLException {
+				DeptEmailTemplateMapping emailTemplateMapping = new DeptEmailTemplateMapping();
+				
+				logger.info("Fetching Email Template mapping from DB");
+				
+				//emailTemplateMapping.setTemplate_type(rs.getString("template_type"));
+				emailTemplateMapping.setTemplate_id(rs.getString("template_id"));
+				emailTemplateMapping.setEmail_content(rs.getString("email_content"));
+				emailTemplateMapping.setEmail_subject(rs.getString("email_subject"));
+				emailTemplateMapping.setEmail_signature_opt(rs.getString("email_signature_opt"));
+				emailTemplateMapping.setEmail_signature(rs.getString("email_signature"));
+				
+				return emailTemplateMapping;
+			}
+		};
+		try {
+			DeptEmailTemplateMapping emailTemplateMapping = jdbcTemplate.queryForObject(dbQueries.getEmailSignatureOptionInfo(),new Object[] { dept_id }, myMapper);
+			if (emailTemplateMapping == null) {
+			    emailTemplateMapping = new DeptEmailTemplateMapping();
+				emailTemplateMapping.setResponse(new Response(false, ErrorCodes.INVALID_DEPT_ID));
+				logger.error("Invalid template id : "+dept_id);
+			} else {
+				logger.debug("Valid template id");
+				emailTemplateMapping .setResponse(new Response(true));
+			}
+			return emailTemplateMapping;
+		} catch (EmptyResultDataAccessException e) {
+			logger.error("No Record Found : ", e);
+			return new DeptEmailTemplateMapping(new Response(false, ErrorCodes.INVALID_DEPT_ID));
+		} catch (DataAccessException e) {
+			logger.error("Can not access the database : ", e);
+			return new DeptEmailTemplateMapping(new Response(false, ErrorCodes.DB_EXCEPTION));
+		}
+	}
+	
+	
+}

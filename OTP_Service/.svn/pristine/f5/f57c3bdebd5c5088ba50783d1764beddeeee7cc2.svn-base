@@ -1,0 +1,81 @@
+package in.cdac.epramaan.otp.model;
+
+public class DeptEmailTemplateMapping {
+	
+	private String template_type;
+	private String template_id;
+	private String email_subject;
+	private String email_content;
+	private String email_signature_opt;
+	private String email_signature;
+	private Response response;
+	
+	
+	public String getTemplate_type() {
+		return template_type;
+	}
+	public void setTemplate_type(String template_type) {
+		this.template_type = template_type;
+	}
+	public String getTemplate_id() {
+		return template_id;
+	}
+	public void setTemplate_id(String template_id) {
+		this.template_id = template_id;
+	}
+	public String getEmail_subject() {
+		return email_subject;
+	}
+	public void setEmail_subject(String email_subject) {
+		this.email_subject = email_subject;
+	}
+	public String getEmail_content() {
+		return email_content;
+	}
+	public void setEmail_content(String email_content) {
+		this.email_content = email_content;
+	}
+
+	public String getEmail_signature_opt() {
+		return email_signature_opt;
+	}
+	public void setEmail_signature_opt(String email_signature_opt) {
+		this.email_signature_opt = email_signature_opt;
+	}
+	public String getEmail_signature() {
+		return email_signature;
+	}
+	public void setEmail_signature(String email_signature) {
+		this.email_signature = email_signature;
+	}
+	public Response getResponse() {
+		return response;
+	}
+	public void setResponse(Response response) {
+		this.response = response;
+	}
+	
+	
+	public DeptEmailTemplateMapping(Response response){
+		this.response = response;
+	}
+	
+public DeptEmailTemplateMapping(){
+		
+	}
+	
+	
+	@Override
+	public String toString() {
+		return "DeptEmailTemplateMapping [template_type=" + template_type + ", template_id=" + template_id
+				+ ", email_subject=" + email_subject + ", email_content=" + email_content + ", email_signature_opt="
+				+ email_signature_opt + ", email_signature=" + email_signature + ", response=" + response + "]";
+	}
+	
+	
+	
+	
+	
+	
+
+}
