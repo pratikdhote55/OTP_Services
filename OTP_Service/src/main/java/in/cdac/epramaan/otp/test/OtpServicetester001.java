@@ -7,7 +7,7 @@ import in.cdac.epramaan.otp.crypto.CryptoUtil;
 import in.cdac.epramaan.otp.model.OtpModelTest;
 import in.cdac.epramaan.otp.model.OtpRequest;
 
-public class OtpServicetester001 {
+public class OtpServiceTester001 {
 
 	public static void main(String[] args) {
 		
